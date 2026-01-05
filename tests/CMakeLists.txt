@@ -6,6 +6,7 @@ target_link_libraries(HTTP_Server_Tests
     PRIVATE
         gtest
         gtest_main
+        GameNetworkingSockets
 )
 
 target_include_directories(HTTP_Server_Tests

@@ -18,6 +18,7 @@ set(gtest_force_shared_crt OFF CACHE BOOL "" FORCE)
 
 
 add_subdirectory(thirdparty/googletest)
+add_subdirectory(thirdparty/GameNetworkingSockets)
 add_subdirectory(tests)
 
 file(GLOB_RECURSE MY_SOURCES CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp")
@@ -25,8 +26,6 @@ file(GLOB_RECURSE MY_SOURCES CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/src/
 add_executable("${CMAKE_PROJECT_NAME}")
 
 set_property(TARGET "${CMAKE_PROJECT_NAME}" PROPERTY CXX_STANDARD 17)
-
-target_compile_definitions("${CMAKE_PROJECT_NAME}" PUBLIC GLFW_INCLUDE_NONE=1) 
 
 if(PRODUCTION_BUILD)
 	target_compile_definitions("${CMAKE_PROJECT_NAME}" PUBLIC RESOURCES_PATH="./resources/") 
@@ -62,4 +61,4 @@ endif()
 
 target_include_directories("${CMAKE_PROJECT_NAME}" PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include/")
 
-target_link_libraries("${CMAKE_PROJECT_NAME}" PRIVATE )
+target_link_libraries("${CMAKE_PROJECT_NAME}" PRIVATE GameNetworkingSockets)
