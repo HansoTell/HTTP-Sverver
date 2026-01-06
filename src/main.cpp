@@ -13,8 +13,9 @@ int main(){
 	}
 
 	http::Server s;
+	//wenn init überhaupt gebracht aber mal schauen wie versuchen es zu vermeiden aber wenns sein muss mus sein. gleiche mit run  
 	s.init();
-	s.run();
+	s.run( true );
 
 	http::listenForCommands();
 	

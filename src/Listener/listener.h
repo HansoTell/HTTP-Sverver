@@ -12,15 +12,16 @@ public:
     Listener(Listener&& other) = default;
     ~Listener();
 public:
-
-    bool init( uint16 port );
-
     //Soll alle clients verwalten und so und anfragen akzeptieren messages an die messager queue übergeben
     //Wie bekommen wir message queue??
-    void listen();
-
+    void startListening( uint16 port );
+    void stopListening();
 private:
-    ISteamNetworkingSockets* m_Interface;
+    bool init( uint16 port );
+
+    void listen();
+private:
+    ISteamNetworkingSockets* m_Interface = nullptr;
     HSteamListenSocket m_Socket;
 };
 
