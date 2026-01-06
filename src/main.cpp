@@ -1,12 +1,22 @@
 #include <iostream>
 #include <stdint.h>
 #include <stdio.h>
+#include <sys/socket.h>
+
+#include "Server/Server.h"
 
 int main(){
 
-	printf( "Hello World\n" );
-	std::cout << "Hello World" << "\n";
-	uint64_t i = 0;
+	if( !http::initHTTP() ){
+		std::cout << "couldnt initialize the lib" << "\n";
+		exit(1);
+	}
+
+	http::Server s;
+	s.init();
+	s.run();
+
+	http::listenForCommands();
 	
 	return 0;
 }
