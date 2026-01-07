@@ -3,6 +3,8 @@
 #include <steam/steamnetworkingsockets.h>
 #include <queue>
 
+#include "../Listener/NetworkManager.h"
+
 
 namespace http{
 
@@ -21,6 +23,7 @@ namespace http{
         bool init();
         //soll auf anderem thrad laufen ig also soll nicht blockieren der server
         void run( bool startListening = false );
+        void setFileRoot();
 
     public:
         Server();

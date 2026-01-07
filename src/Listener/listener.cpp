@@ -12,28 +12,42 @@ namespace http{
     }
 
     void Listener::startListening( uint16 port ){
-        //sollte nicht doppelt init gecalled werden wenn stop listenin und wieder start listening oder?? 
-        //zudem kann init fehlschlgane? dann fehljer output
-        init( port );
+        //init kann fehlschlagen also false returnen im fehlschlagen
+        if( !init( port )){
+            //error handeling
+            //und so weoter wahrschienlich false retunrn oder iein error objekt oder sowas ka
+        }
         listen();
     }
 
     bool Listener::init( uint16 port ){
 
-        if( !m_Interface )
-            m_Interface = SteamNetworkingSockets();
-        
         SteamNetworkingIPAddr address;
         address.Clear();
         address.m_port = port;
 
-        //Dokumentation lesen und optinen setzten
-        SteamNetworkingConfigValue_t opt;
+        //Set initial Options
+        int numOptions = 2;
+        SteamNetworkingConfigValue_t options[numOptions];
+        options[0].SetInt32(k_ESteamNetworkingConfig_TimeoutInitial, 5000);
+        options[1].SetInt32(k_ESteamNetworkingConfig_TimeoutConnected, 5000);
 
-        m_Socket = m_Interface->CreateListenSocketIP(address, 1, &opt);
 
+        m_Socket = NetworkManager::Get().m_pInterface->CreateListenSocketIP(address, numOptions, options);
 
-        //pollgtroup dokumentation lesen allgemeijn alles an dokumentation so schenll lesen wie geht
+        if( m_Socket == k_HSteamListenSocket_Invalid){
+            //error
+            //loggen
+            return false;
+        }
+
+        m_pollGroup = NetworkManager::Get().m_pInterface->CreatePollGroup();
+
+        if( m_pollGroup == k_HSteamNetPollGroup_Invalid ){
+            //error
+            //loggen
+            return false;
+        }
     }
 
     void Listener::listen(){
@@ -49,8 +63,10 @@ namespace http{
 
         //alles wichtige erst noch handeln oder alle connections einzeln schließen nur demonstration
 
-        
 
-        m_Interface->CloseListenSocket( m_Socket );
+        //muss ich das socket auf 0 setzten oder so? damit dann nicht falsche dinge passieren
+        //muss ich poll group auf null setzten oder so und mus ich checkenb ob false returned wird
+        NetworkManager::Get().m_pInterface->DestroyPollGroup( m_pollGroup );
+        NetworkManager::Get().m_pInterface->CloseListenSocket( m_Socket );
     }
 }

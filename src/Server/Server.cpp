@@ -9,6 +9,9 @@ namespace http{
 
             return false;
         }
+
+
+        NetworkManager::Get().init();
     }
 
     bool HTTP_Kill(){

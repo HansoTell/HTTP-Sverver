@@ -3,6 +3,9 @@
 #include <steam/steamnetworkingsockets.h>
 #include <stdint.h>
 
+
+#include "NetworkManager.h"
+
 namespace http{
 
 class Listener {
@@ -18,11 +21,10 @@ public:
     void stopListening();
 private:
     bool init( uint16 port );
-
     void listen();
 private:
-    ISteamNetworkingSockets* m_Interface = nullptr;
     HSteamListenSocket m_Socket;
+    HSteamNetPollGroup m_pollGroup;
 };
 
 }
