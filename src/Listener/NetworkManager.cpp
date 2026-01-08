@@ -7,6 +7,9 @@ void NetworkManager::init(){
     SteamNetworkingUtils()->SetGlobalCallback_SteamNetConnectionStatusChanged( OnConnectionStatusChangedCallback );
 
     m_pInterface = SteamNetworkingSockets(); 
+
+    std::thread callBackThreat ( pollConnectionChanges );
+    callBackThreat.detach();
 }
 
 void NetworkManager::callbackManager( SteamNetConnectionStatusChangedCallback_t *pInfo ){
@@ -14,19 +17,50 @@ void NetworkManager::callbackManager( SteamNetConnectionStatusChangedCallback_t 
 
 }
 
+void NetworkManager::startCallbacksIfNeeded() {
+    std::lock_guard<std::mutex> lock (m_callbackMutex);
+    m_Connections_open=true;
+    m_callbackCV.notify_one();
+}
+
 void NetworkManager::pollConnectionChanges(){
+    std::unique_lock<std::mutex> lock (m_callbackMutex);
 
-    while( m_Connections_open ){
-        m_pInterface->RunCallbacks();
+    while ( isHTTPInitialized ){
+        m_callbackCV.wait(lock, [this](){
+            return m_Connections_open;
+        });
 
-        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+        if( !isHTTPInitialized ) break; 
 
-        //checken ob es noch connections gibt
-        std::unique_lock<std::mutex> lock(m_connection_lock);
-        if( false )
-            m_Connections_open = false;
+        lock.unlock();
 
+        while( m_Connections_open ){
+            
+            m_pInterface->RunCallbacks();
+
+            std::this_thread::sleep_for(std::chrono::milliseconds(10));
+
+            std::lock_guard<std::mutex> lock(m_connection_lock);
+            if( m_all_sockets.empty() && m_all_connections.empty()  )
+                m_Connections_open = false;
+        }
+
+        lock.lock();
     }
+}
+
+void NetworkManager::notifySocketCreation( HSteamListenSocket createdSocket ){
+    std::lock_guard<std::mutex> lock(m_connection_lock);
+    m_all_sockets.insert( createdSocket );
+} 
+
+void NetworkManager::notifySocketDestruction( HSteamListenSocket destroyedSocket ){
+
+    //werden die gekillten connections vernünftig entfernt dabei?
+
+    std::lock_guard<std::mutex> lock(m_connection_lock);
+    m_all_connections.erase(destroyedSocket);
 }
 
 }

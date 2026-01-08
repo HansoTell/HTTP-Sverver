@@ -2,7 +2,8 @@
 
 #include <steam/steamnetworkingsockets.h>
 #include <stdint.h>
-
+#include <chrono>
+#include <thread>
 
 #include "NetworkManager.h"
 

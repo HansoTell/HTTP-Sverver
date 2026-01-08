@@ -7,12 +7,14 @@ namespace http{
 
     }
 
+
+
     Listener::~Listener(){
 
     }
 
     void Listener::startListening( uint16 port ){
-        //init kann fehlschlagen also false returnen im fehlschlagen
+        //init kann fehlschlagen also false returnen im fehlschlagen oder so oder error objekt alt (expected clon)
         if( !init( port )){
             //error handeling
             //und so weoter wahrschienlich false retunrn oder iein error objekt oder sowas ka
@@ -41,6 +43,8 @@ namespace http{
             return false;
         }
 
+        NetworkManager::Get().startCallbacksIfNeeded();
+
         m_pollGroup = NetworkManager::Get().m_pInterface->CreatePollGroup();
 
         if( m_pollGroup == k_HSteamNetPollGroup_Invalid ){
@@ -51,7 +55,6 @@ namespace http{
     }
 
     void Listener::listen(){
-        //natürlich soll nicht für immer wheil true sein, soll auch stoppbar sein
         while (true)
         {
 
@@ -67,6 +70,7 @@ namespace http{
         //muss ich das socket auf 0 setzten oder so? damit dann nicht falsche dinge passieren
         //muss ich poll group auf null setzten oder so und mus ich checkenb ob false returned wird
         NetworkManager::Get().m_pInterface->DestroyPollGroup( m_pollGroup );
+        NetworkManager::Get().notifySocketDestruction( m_Socket );
         NetworkManager::Get().m_pInterface->CloseListenSocket( m_Socket );
     }
 }
