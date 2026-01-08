@@ -3,7 +3,6 @@
 
 #include <steam/steamnetworkingsockets.h>
 
-
 #include "NetworkManager.h"
 
 namespace http{
