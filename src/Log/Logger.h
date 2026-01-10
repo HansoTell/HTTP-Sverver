@@ -32,14 +32,13 @@ namespace Log{
     class Logger{
         public:
         Logger(const std::string& file){
-            m_logFile.open(file, std::ios::app);
+            m_logFile.open("Logs/logs.txt", std::ios::app);
             if(!m_logFile.is_open())
                 std::cerr << "Failed to open Log file" << "\n";
 
             m_LogThread = std::thread ( logThread );
         }
         ~Logger(){
-
             m_running = false;
             m_cv.notify_all();
             if( m_LogThread.joinable() )
@@ -68,7 +67,6 @@ namespace Log{
 
             m_cv.notify_one();
         }
-
 
         private:
         std::string levelToString(LogLevel logLevel) const {
@@ -106,5 +104,4 @@ namespace Log{
         std::thread m_LogThread;
         std::atomic<bool> m_running {true};
     };
-
 }
