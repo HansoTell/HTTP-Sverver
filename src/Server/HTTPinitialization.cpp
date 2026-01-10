@@ -2,6 +2,9 @@
 
 namespace http{
 
+//file einfügen wo ich das will
+Log::Logger g_Logger("");
+
 bool isHTTPInitialized = false;
 
 bool initHTTP(){
@@ -20,6 +23,7 @@ bool initHTTP(){
 bool HTTP_Kill(){
     //Alles runter fahren falls wir noch mehr brauchen
     GameNetworkingSockets_Kill();
+    NetworkManager::Get().kill();
 
     isHTTPInitialized = false;
 }

@@ -8,8 +8,14 @@ void NetworkManager::init(){
 
     m_pInterface = SteamNetworkingSockets(); 
 
-    std::thread callBackThreat ( pollConnectionChanges );
-    callBackThreat.detach();
+    m_CallBackThread = std::thread ( pollConnectionChanges );
+}
+
+void NetworkManager::kill(){
+    m_running = false;
+
+    if( m_CallBackThread.joinable())
+        m_CallBackThread.join();
 }
 
 void NetworkManager::callbackManager( SteamNetConnectionStatusChangedCallback_t *pInfo ){
@@ -26,12 +32,12 @@ void NetworkManager::startCallbacksIfNeeded() {
 void NetworkManager::pollConnectionChanges(){
     std::unique_lock<std::mutex> lock (m_callbackMutex);
 
-    while ( isHTTPInitialized ){
+    while ( m_running ){
         m_callbackCV.wait(lock, [this](){
-            return m_Connections_open;
+            return m_Connections_open || !m_running;
         });
 
-        if( !isHTTPInitialized ) break; 
+        if( !m_running ) break; 
 
         lock.unlock();
 

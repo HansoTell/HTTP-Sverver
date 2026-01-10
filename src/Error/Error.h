@@ -16,6 +16,9 @@ namespace Error {
         int line;
     };
 
+    inline std::ostream& operator<<(std::ostream& os, const SourceLocation& location){ return os << location.File << ":" << location.line << " " << location.Function; }
+
+
     template<typename E> 
     struct ErrorValue
     {
@@ -24,14 +27,15 @@ namespace Error {
         E ErrorCode;
         std::string_view Message;
         SourceLocation Location;
-
-
-        const char* toString() const {
-            return "Error Code: " + ErrorCode + "\n" + 
-                    "Message: " + Message.data() + "\n" +
-                    "Location: " + Location.File + ": " + Location.line + " in " + Location.Function; 
-        }
     };
+
+    template<typename E>
+    inline std::ostream& operator<<(std::ostream& os, const ErrorValue<E>& errValue) {
+        return os << "ErrorCode: " << ErrorCode << "\n" <<
+                        "Message: " << errValue.Message.data() << "\n" << 
+                        "Location: " << Location << "\n"; 
+    }
+
 
     template<typename E>
     ErrorValue<E> make_error(E code, std::string_view msg){
@@ -57,7 +61,6 @@ namespace Error {
 
         const value_Type& value() { return std::get<value_Type> (m_data); }
         const ErrorType& error() { return std::get<ErrorType> (m_data); }
-
     };
 
 }
