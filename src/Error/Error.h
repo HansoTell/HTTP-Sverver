@@ -1,11 +1,8 @@
 #pragma once
 
 #include <string_view>
-#include <string>
 #include <type_traits>
 #include <variant>
-
-#include "Errorcodes.h"
 
 #define CURRENT_LOCATION ::Error::SourceLocation{__FILE__, __func__, __LINE__}
 
@@ -27,6 +24,13 @@ namespace Error {
         E ErrorCode;
         std::string_view Message;
         SourceLocation Location;
+
+
+        const char* toString() const {
+            return "Error Code: " + ErrorCode + "\n" + 
+                    "Message: " + Message.data() + "\n" +
+                    "Location: " + Location.File + ": " + Location.line + " in " + Location.Function; 
+        }
     };
 
     template<typename E>

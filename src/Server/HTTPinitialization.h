@@ -1,11 +1,17 @@
 #pragma once
 
 
+
 #include <steam/steamnetworkingsockets.h>
 
-#include "NetworkManager.h"
+#include "../Error/Error.h"
+#include "../Error/Errorcodes.h"
+#include "../Listener/NetworkManager.h"
 
 namespace http{
+
+template<typename T>
+using Result = Error::Result<T, HTTPErrors>;
 
 extern bool isHTTPInitialized;
 
