@@ -5,9 +5,4 @@ namespace http {
     enum HTTPErrors {
 
     };
-
-    enum ErrorCodes {
-        
-    };
-
 }
