@@ -12,6 +12,7 @@
 #include <queue>
 #include <condition_variable>
 #include <atomic>
+#include <string_view>
 
 #define CURRENT_LOCATION ::Log::SourceLocation{__FILE__, __func__, __LINE__}
 namespace Log{
@@ -49,7 +50,7 @@ namespace Log{
         }
         public:
         void setLogLevel(LogLevel level){ m_Loglevel = level; }
-        void log(LogLevel logLevel, const std::string& message, SourceLocation location) {
+        void log(LogLevel logLevel, const std::string_view message, SourceLocation location) {
             if(logLevel < m_Loglevel)
                 return;
 
@@ -57,12 +58,18 @@ namespace Log{
             std::time_t logTime = std::chrono::system_clock::to_time_t(now);
             std::tm tm = *std::localtime(&logTime);            
 
+            std::string logEntry;
+            logEntry.reserve(128);
+            logEntry.append("[");
+
+            //das möglichst reduzierern und weniger ineffizient machen --> string umwandeln
             std::ostringstream logentry;
             logentry << "[" << std::put_time(&tm, "%Y-%m-%d %H:%M:%S") << "] " << levelToString(logLevel) << ": " << "["<< location << "] " << message << "\n";
 
             {
                 std::lock_guard<std::mutex> __lock (m_queueMutex);
-                m_MessageQueue.push(logentry.str());
+                //string moven hier für optimazation
+                m_MessageQueue.push(std::move(logEntry));
             }
 
             m_cv.notify_one();
