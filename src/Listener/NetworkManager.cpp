@@ -8,7 +8,7 @@ void NetworkManager::init(){
 
     m_pInterface = SteamNetworkingSockets(); 
 
-    m_CallBackThread = std::thread ( pollConnectionChanges );
+    m_CallBackThread = std::thread ( [this](){ this->pollConnectionChanges(); } );
 }
 
 void NetworkManager::kill(){

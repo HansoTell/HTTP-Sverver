@@ -4,7 +4,6 @@
 #include <iostream>
 #include <fstream>
 #include <sstream>
-#include <chrono>
 #include <ctime>
 #include <iomanip>
 #include <mutex>
@@ -13,8 +12,14 @@
 #include <condition_variable>
 #include <atomic>
 #include <string_view>
+#include <cstring>
+#include <algorithm>
+#include <format>
 
-#define CURRENT_LOCATION ::Log::SourceLocation{__FILE__, __func__, __LINE__}
+#define CURRENT_LOCATION_LOG ::Log::SourceLocation{__FILE__, __func__, __LINE__}
+
+//Makros deklarieren für alles info und so dass man logger.DEBUG und dann halt sein eigenes LOG_DEBUG() implementieren kann
+
 namespace Log{
 
     enum LogLevel{
@@ -30,6 +35,7 @@ namespace Log{
 
     inline std::ostream& operator<<(std::ostream& os, const SourceLocation& location){ return os << location.File << ":" << location.line << " " << location.Function; }
 
+
     class Logger{
         public:
         Logger(const std::string& file){
@@ -37,7 +43,7 @@ namespace Log{
             if(!m_logFile.is_open())
                 std::cerr << "Failed to open Log file" << "\n";
 
-            m_LogThread = std::thread ( logThread );
+            m_LogThread = std::thread ( [this](){ this->logThread(); } );
         }
         ~Logger(){
             m_running = false;
@@ -50,27 +56,40 @@ namespace Log{
         }
         public:
         void setLogLevel(LogLevel level){ m_Loglevel = level; }
+
+        template<typename ... Args> 
+        void var_Log(LogLevel logLevel, SourceLocation location, Args&&... args){
+            if( logLevel < m_Loglevel )
+                return;
+
+            char buff[32];            
+            currentTimetoString(buff);
+
+            std::string logEntry = createDeafultEntry(buff, logLevel, location);
+
+            (addMessageToString(logEntry, std::forward<Args>(args)), ...);
+
+            logEntry.append("\n");
+            logEntry.shrink_to_fit();
+
+            addToMessageQueue(std::move(logEntry));
+
+            m_cv.notify_one();
+        }
+
         void log(LogLevel logLevel, const std::string_view message, SourceLocation location) {
             if(logLevel < m_Loglevel)
                 return;
 
-            auto now = std::chrono::system_clock::now();
-            std::time_t logTime = std::chrono::system_clock::to_time_t(now);
-            std::tm tm = *std::localtime(&logTime);            
+            char buff[32];
+            currentTimetoString(buff);
 
-            std::string logEntry;
-            logEntry.reserve(128);
-            logEntry.append("[");
+            std::string logEntry = createDeafultEntry(buff, logLevel, location);
+            logEntry.append(message.data()).append("\n");
+            logEntry.shrink_to_fit();
 
-            //das möglichst reduzierern und weniger ineffizient machen --> string umwandeln
-            std::ostringstream logentry;
-            logentry << "[" << std::put_time(&tm, "%Y-%m-%d %H:%M:%S") << "] " << levelToString(logLevel) << ": " << "["<< location << "] " << message << "\n";
 
-            {
-                std::lock_guard<std::mutex> __lock (m_queueMutex);
-                //string moven hier für optimazation
-                m_MessageQueue.push(std::move(logEntry));
-            }
+            addToMessageQueue(std::move(logEntry));
 
             m_cv.notify_one();
         }
@@ -99,6 +118,43 @@ namespace Log{
                 }
                 m_logFile.flush();
             }
+        }
+
+        void currentTimetoString(char* dest){
+            std::time_t logTime = std::time(nullptr);
+            std::strncpy(dest, std::ctime(&logTime), 24);
+            dest[24] = '\0';
+        }
+
+        std::string createDeafultEntry(const char* time, LogLevel logLevel, const SourceLocation& location){
+            std::string logEntry;
+            logEntry.reserve(256);
+            logEntry.append("[").append(time).append("]")
+                    .append(levelToString(logLevel))
+                    .append(": [").append(location.File).append(":").append(std::to_string(location.line)).append(" ").append(location.Function).append("]")
+                    .append("] ");
+            return logEntry;
+        }
+
+        template<typename T>
+        void addMessageToString(std::string& string, T&& message){ string.append(toLogString(message)); }
+
+        template<typename T>
+        std::string toLogString(const T& message){
+            if constexpr ( std::is_arithmetic_v<T> ) {
+                return std::to_string(message);
+            }else if constexpr ( std::is_same_v<T, std::string> ){
+                return message;
+            } else if constexpr ( std::is_convertible_v<T, std::string_view> ){
+                return std::string(message);
+            }else{
+                static_assert( false, "Type not printable" );
+            }
+        }
+
+        void addToMessageQueue(std::string&& logEntry){
+            std::lock_guard<std::mutex> __lock (m_queueMutex);
+            m_MessageQueue.push(std::move(logEntry));
         }
 
         private:

@@ -8,6 +8,9 @@
 
 #define MAKE_ERROR(code, msg) ::Error::make_error(code, msg)
 
+//Wie printed man das und bekommt es in ein logging System? einfach eine art toString, aber dann fehlt halt message ned? MIt defines in methoden umsetzten die das alles kopieren?
+//operator std::string überladen muss ja ist halt alloc aber ist ja auch bei errorn da ist ja eh tot oder so
+
 namespace Error {
 
     struct SourceLocation {
@@ -22,7 +25,7 @@ namespace Error {
     template<typename E> 
     struct ErrorValue
     {
-        static_assert(std::is_enum<E>, "Error code musst be an enum Type");
+        static_assert(std::is_enum_v<E>, "Error code musst be an enum Type");
 
         E ErrorCode;
         std::string_view Message;
@@ -31,9 +34,9 @@ namespace Error {
 
     template<typename E>
     inline std::ostream& operator<<(std::ostream& os, const ErrorValue<E>& errValue) {
-        return os << "ErrorCode: " << ErrorCode << "\n" <<
+        return os << "ErrorCode: " << errValue.ErrorCode << "\n" <<
                         "Message: " << errValue.Message.data() << "\n" << 
-                        "Location: " << Location << "\n"; 
+                        "Location: " << errValue.Message << "\n"; 
     }
 
 
@@ -57,7 +60,7 @@ namespace Error {
         bool isOK() const { return std::holds_alternative<value_Type>(m_data); }
         bool isErr() const {return !isOK(); }
 
-        explicit operator bool() const { return ok(); }
+        explicit operator bool() const { return isOK(); }
 
         const value_Type& value() { return std::get<value_Type> (m_data); }
         const ErrorType& error() { return std::get<ErrorType> (m_data); }
