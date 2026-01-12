@@ -18,7 +18,22 @@
 
 #define CURRENT_LOCATION_LOG ::Log::SourceLocation{__FILE__, __func__, __LINE__}
 
-//Makros deklarieren für alles info und so dass man logger.DEBUG und dann halt sein eigenes LOG_DEBUG() implementieren kann
+#ifndef NDEBUG
+#define DEBUG(msg) log(Log::LogLevel::DEBUG, msg, CURRENT_LOCATION_LOG)
+#define VDEBUG(...) var_log(Log::LogLevel::DEBUG, CURRENT_LOCATION_LOG, __VA_ARGS__)
+#else
+#define DEBUG(msg) 
+#define VDEBUG(...)
+#endif
+
+#define INFO(msg) log(Log::LogLevel::INFO, msg, CURRENT_LOCATION_LOG)
+#define VINFO(...) var_log(Log::LogLevel::INFO, CURRENT_LOCATION_LOG, __VA_ARGS__)
+#define WARNING(msg) log(Log::LogLevel::WARNING, msg, CURRENT_LOCATION_LOG)
+#define VWARNING(...) var_log(Log::LogLevel::WARNING, CURRENT_LOCATION_LOG, __VA_ARGS__)
+#define ERROR(msg) log(Log::LogLevel::ERROR, msg, CURRENT_LOCATION_LOG)
+#define VERROR(...) var_log(Log::LogLevel::ERROR, CURRENT_LOCATION_LOG, __VA_ARGS__)
+#define CRITICAL(msg) log(Log::LogLevel::CRITICAL, msg, CURRENT_LOCATION_LOG)
+#define VCRITICAL(...) var_log(Log::LogLevel::CRITICAL, CURRENT_LOCATION_LOG, __VA_ARGS__)
 
 namespace Log{
 
