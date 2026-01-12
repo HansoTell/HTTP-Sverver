@@ -154,7 +154,7 @@ namespace Log{
         }
 
         template<typename T>
-        void addMessageToString(std::string& string, T&& message){ string.append(toLogString(message)); }
+        void addMessageToString(std::string& string, T&& message){ string.append(toLogString(message).append(" ")); }
 
         template<typename T>
         std::string toLogString(const T& message){
