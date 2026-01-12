@@ -29,6 +29,8 @@ bool initHTTP(){
     NetworkManager::Get().init();
 
     isHTTPInitialized = true;
+
+    return true;
 }
 
 bool HTTP_Kill(){
@@ -39,6 +41,8 @@ bool HTTP_Kill(){
     NetworkManager::Get().kill();
 
     isHTTPInitialized = false;
+
+    return true;
 }
 
 void listenForCommands(){

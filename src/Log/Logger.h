@@ -35,6 +35,7 @@
 #define CRITICAL(msg) log(Log::LogLevel::CRITICAL, msg, CURRENT_LOCATION_LOG)
 #define VCRITICAL(...) var_log(Log::LogLevel::CRITICAL, CURRENT_LOCATION_LOG, __VA_ARGS__)
 
+//fehlen noch rotierende log files
 namespace Log{
 
     enum LogLevel{
@@ -117,11 +118,12 @@ namespace Log{
                 case ERROR: return "ERROR";
                 case WARNING: return "WARNING";
                 case CRITICAL: return "CRITICAL";
+                default: return "NON TYPE";
             }
         }
 
         void logThread(){
-            while( m_running || m_MessageQueue.empty() ){
+            while( m_running || !m_MessageQueue.empty() ){
                 std::unique_lock<std::mutex> __lock (m_queueMutex);
                 m_cv.wait(__lock, [&]{
                     return !m_MessageQueue.empty() || !m_running;

@@ -13,6 +13,7 @@ void NetworkManager::init(){
 
 void NetworkManager::kill(){
     m_running = false;
+    m_callbackCV.notify_all();
 
     if( m_CallBackThread.joinable())
         m_CallBackThread.join();
