@@ -15,11 +15,12 @@
 #include <cstring>
 #include <algorithm>
 #include <format>
+#include <system_error>
 
 #define CURRENT_LOCATION_LOG ::Log::SourceLocation{__FILE__, __func__, __LINE__}
 
 #ifndef NDEBUG
-#define DEBUG(msg) log(Log::LogLevel::DEBUG, msg, CURRENT_LOCATION_LOG)
+#define DEBUG(msg) Log(Log::LogLevel::DEBUG, msg, CURRENT_LOCATION_LOG)
 #define VDEBUG(...) var_log(Log::LogLevel::DEBUG, CURRENT_LOCATION_LOG, __VA_ARGS__)
 #else
 #define DEBUG(msg) 
@@ -27,15 +28,17 @@
 #endif
 
 #define INFO(msg) log(Log::LogLevel::INFO, msg, CURRENT_LOCATION_LOG)
-#define VINFO(...) var_log(Log::LogLevel::INFO, CURRENT_LOCATION_LOG, __VA_ARGS__)
+#define VINFO(...) var_Log(Log::LogLevel::INFO, CURRENT_LOCATION_LOG, __VA_ARGS__)
 #define WARNING(msg) log(Log::LogLevel::WARNING, msg, CURRENT_LOCATION_LOG)
-#define VWARNING(...) var_log(Log::LogLevel::WARNING, CURRENT_LOCATION_LOG, __VA_ARGS__)
+#define VWARNING(...) var_Log(Log::LogLevel::WARNING, CURRENT_LOCATION_LOG, __VA_ARGS__)
 #define ERROR(msg) log(Log::LogLevel::ERROR, msg, CURRENT_LOCATION_LOG)
-#define VERROR(...) var_log(Log::LogLevel::ERROR, CURRENT_LOCATION_LOG, __VA_ARGS__)
+#define VERROR(...) var_Log(Log::LogLevel::ERROR, CURRENT_LOCATION_LOG, __VA_ARGS__)
 #define CRITICAL(msg) log(Log::LogLevel::CRITICAL, msg, CURRENT_LOCATION_LOG)
-#define VCRITICAL(...) var_log(Log::LogLevel::CRITICAL, CURRENT_LOCATION_LOG, __VA_ARGS__)
+#define VCRITICAL(...) var_Log(Log::LogLevel::CRITICAL, CURRENT_LOCATION_LOG, __VA_ARGS__)
 
-//fehlen noch rotierende log files
+#define MAXLOGSIZE 5*1024*1024
+
+
 namespace Log{
 
     enum LogLevel{
@@ -55,7 +58,7 @@ namespace Log{
     class Logger{
         public:
         Logger(const std::string& file){
-            m_logFile.open("Logs/logs.txt", std::ios::app);
+            m_logFile.open(file, std::ios::app) : m_logPath(file);
             if(!m_logFile.is_open())
                 std::cerr << "Failed to open Log file" << "\n";
 
@@ -130,6 +133,9 @@ namespace Log{
                 });
 
                 while( !m_MessageQueue.empty() ){
+
+                    changeLogFileIfNeeded();
+
                     m_logFile << m_MessageQueue.front();
                     m_MessageQueue.pop();
                 }
@@ -155,29 +161,49 @@ namespace Log{
 
         template<typename T>
         void addMessageToString(std::string& string, T&& message){ 
-            appendToLog(string, T);
+            appendToLog(string, message);
             string.append(" ");
         }
 
-        void appendToLog(std::string& logEntry, const char* message) { logEntry.append(message); }
-        void appendToLog(std::string& logEntry, std::string_view message){ logEntry.append(message); }
-        void appendToLog(std::string& logEntry, const std::string& message){ logEntry.append(message); }
-        template<typename T, typename = typename std::enable_if<std::is_arithmetic_v<T>>::type>
-        void appendToLog(std::string& logEntry, const T& message){ logEntry.append(std::to_string(message)); }
-        //alterantive zu der hölle wie arithemtik nur mit convertible zu string view oder string ig macht kein unterschied
-        template<typename T>
-        auto appendToLog(std::string& logEntry, const T& message) -> decltype(message.toLog(), void()) { logEntry.append(message); }
-        template<typename T> 
-        void appendToLog(std::string& logEntry, const T& message){ static_assert(sizeof(T) == 0, "Type not logable"); }
 
-        
         void addToMessageQueue(std::string&& logEntry){
             std::lock_guard<std::mutex> __lock (m_queueMutex);
             m_MessageQueue.push(std::move(logEntry));
         }
 
+        void changeLogFileIfNeeded(){
+            if( !std::filesystem::exists(m_logPath) )
+                return;
+            
+            if( std::filesystem::file_size(m_logPath) < MAXLOGSIZE)
+                return;
+
+            if( m_logFile.is_open() )
+                m_logFile.close();
+
+            std::time_t currTime = std::time(nullptr);
+            char timeBuffer[std::size("yyyy-mm-ddThh:mm:ssZ")];
+            std::strftime(timeBuffer, std::size(timeBuffer), "%FT%TZ", std::gmtime(&currTime));
+            
+            std::filesystem::path newPath = m_logPath;
+            (newPath += ".") += timeBuffer;
+
+            std::error_code ec;
+            std::filesystem::rename(m_logPath, newPath, ec);
+
+            m_logFile.open(m_logPath, std::ios::app);
+
+            if( !m_logFile.is_open() )
+                std::cerr << "Couldt open new Log File after rotating" << "\n";
+
+            if( ec ){
+                VERROR("Failed to Rename File", ec.message());
+            }
+        } 
+
         private:
         std::ofstream m_logFile;
+        std::string m_logPath;
         LogLevel m_Loglevel = LogLevel::INFO;
 
         std::mutex m_queueMutex;

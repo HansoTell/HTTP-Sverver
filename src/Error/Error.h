@@ -6,10 +6,9 @@
 
 #define CURRENT_LOCATION ::Error::SourceLocation{__FILE__, __func__, __LINE__}
 
+//das kann doch nie funktionieren muss fixed werden
 #define MAKE_ERROR(code, msg) ::Error::make_error(code, msg)
 
-//Wie printed man das und bekommt es in ein logging System? einfach eine art toString, aber dann fehlt halt message ned? MIt defines in methoden umsetzten die das alles kopieren?
-//operator std::string überladen muss ja ist halt alloc aber ist ja auch bei errorn da ist ja eh tot oder so
 
 namespace Error {
 
@@ -30,6 +29,9 @@ namespace Error {
         E ErrorCode;
         std::string_view Message;
         SourceLocation Location;
+
+        std::string toLog() const { return ((((((std::to_string(ErrorCode) += Message) += Location.File) += ":") += std::to_string(Location.line)) += " ")+= Location.Function); }
+    };
     };
 
     template<typename E>
