@@ -154,21 +154,23 @@ namespace Log{
         }
 
         template<typename T>
-        void addMessageToString(std::string& string, T&& message){ string.append(toLogString(message).append(" ")); }
-
-        template<typename T>
-        std::string toLogString(const T& message){
-            if constexpr ( std::is_arithmetic_v<T> ) {
-                return std::to_string(message);
-            }else if constexpr ( std::is_same_v<T, std::string> ){
-                return message;
-            } else if constexpr ( std::is_convertible_v<T, std::string_view> ){
-                return std::string(message);
-            }else{
-                static_assert( false, "Type not printable" );
-            }
+        void addMessageToString(std::string& string, T&& message){ 
+            appendToLog(string, T);
+            string.append(" ");
         }
 
+        void appendToLog(std::string& logEntry, const char* message) { logEntry.append(message); }
+        void appendToLog(std::string& logEntry, std::string_view message){ logEntry.append(message); }
+        void appendToLog(std::string& logEntry, const std::string& message){ logEntry.append(message); }
+        template<typename T, typename = typename std::enable_if<std::is_arithmetic_v<T>>::type>
+        void appendToLog(std::string& logEntry, const T& message){ logEntry.append(std::to_string(message)); }
+        //alterantive zu der hölle wie arithemtik nur mit convertible zu string view oder string ig macht kein unterschied
+        template<typename T>
+        auto appendToLog(std::string& logEntry, const T& message) -> decltype(message.toLog(), void()) { logEntry.append(message); }
+        template<typename T> 
+        void appendToLog(std::string& logEntry, const T& message){ static_assert(sizeof(T) == 0, "Type not logable"); }
+
+        
         void addToMessageQueue(std::string&& logEntry){
             std::lock_guard<std::mutex> __lock (m_queueMutex);
             m_MessageQueue.push(std::move(logEntry));
