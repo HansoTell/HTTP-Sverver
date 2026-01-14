@@ -30,6 +30,8 @@
 #define LOG_VERROR(...) http::g_Logger->VERROR(__VA_ARGS__)
 #define LOG_VCRITICAL(...) http::g_Logger->VCRITICAL(__VA_ARGS__)
 
+#define MAKE_ERROR(code, message) ::Error::make_error<http::HTTPErrors>(code, message) 
+
 namespace http{
 
 template<typename T>

@@ -6,10 +6,6 @@
 
 #define CURRENT_LOCATION ::Error::SourceLocation{__FILE__, __func__, __LINE__}
 
-//das kann doch nie funktionieren muss fixed werden
-#define MAKE_ERROR(code, msg) ::Error::make_error(code, msg)
-
-
 namespace Error {
 
     struct SourceLocation {
@@ -30,7 +26,14 @@ namespace Error {
         std::string_view Message;
         SourceLocation Location;
 
-        std::string toLog() const { return ((((((std::to_string(static_cast<int>(ErrorCode)) += Message) += Location.File) += ":") += std::to_string(Location.line)) += " ")+= Location.Function); }
+        std::string toLog() const { 
+            std::string ErrorString;
+            ErrorString.reserve(128);    
+            ErrorString.append("Error Occured with ErrorCode: ").append(std::to_string(static_cast<int> (ErrorCode)))
+                        .append(" in ").append(Location.File).append(":").append(std::to_string(Location.line)).append(" ").append(Location.Function)
+                        .append(" With Message: ").append(Message);
+            return ErrorString;
+        }
     };
 
     template<typename E>

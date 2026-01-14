@@ -16,6 +16,7 @@
 #include <algorithm>
 #include <format>
 #include <system_error>
+#include <chrono>
 
 #define CURRENT_LOCATION_LOG ::Log::SourceLocation{__FILE__, __func__, __LINE__}
 
@@ -38,7 +39,7 @@
 
 #define MAXLOGSIZE 5*1024*1024
 
-
+//Farben wäre schön
 namespace Log{
     template<typename T, typename = void>
     struct has_toLog : std::false_type {};
@@ -163,10 +164,10 @@ namespace Log{
         std::string createDeafultEntry(const char* time, LogLevel logLevel, const SourceLocation& location){
             std::string logEntry;
             logEntry.reserve(256);
-            (((((((((((logEntry.append("[")).append(time)).append("]"))
-                    .append(levelToString(logLevel)))
-                    .append(": [")).append(location.File)).append(":")).append(std::to_string(location.line)).append(" ")).append(location.Function)).append("]"))
-                    .append("] "));
+            logEntry.append("[").append(time).append("]")
+                    .append(levelToString(logLevel))
+                    .append(": [").append(location.File).append(":").append(std::to_string(location.line)).append(" ").append(location.Function).append("]")
+                    .append("] ");
             return logEntry;
         }
 
@@ -182,6 +183,7 @@ namespace Log{
             m_MessageQueue.push(std::move(logEntry));
         }
 
+        //problen nach bennenung nur noch letzter eintrag der angezeigt wird
         void changeLogFileIfNeeded(){
             if( !std::filesystem::exists(m_logPath) )
                 return;
@@ -208,7 +210,13 @@ namespace Log{
                 std::cerr << "Couldt open new Log File after rotating" << "\n";
 
             if( ec ){
-                VERROR("Failed to Rename File", ec.message());
+                if( ec == std::errc::file_exists ){
+                    VERROR("Changed Log File to existing File", ec.message());
+                    //Waiting for time to step forward for newm time name
+                    std::this_thread::sleep_for(std::chrono::seconds(1));
+                }else{
+                    VERROR("Failed to Rename File", ec.message());
+                }
             }
         } 
 

@@ -33,10 +33,8 @@ int main(){
 	http::g_Logger->CRITICAL("CRITICAL Test 2");
 
 	Error::ErrorValue<http::HTTPErrors> testError = {http::HTTPErrors::bsp, "Huso", CURRENT_LOCATION };
-	auto location = CURRENT_LOCATION;
 
-	//warum gibt er den nich als comile fehler
-	LOG_VDEBUG("Test Error Variable", 42, testError);
+	LOG_VDEBUG("Test Error Variable", 42, testError, MAKE_ERROR(http::HTTPErrors::bsp, "Makro Test"));
 
 	std::cin.get();
 
