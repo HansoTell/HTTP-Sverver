@@ -52,6 +52,8 @@ namespace http{
             //loggen
             return false;
         }
+
+        return true;
     }
 
     void Listener::listen(){

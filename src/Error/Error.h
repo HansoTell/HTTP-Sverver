@@ -30,8 +30,7 @@ namespace Error {
         std::string_view Message;
         SourceLocation Location;
 
-        std::string toLog() const { return ((((((std::to_string(ErrorCode) += Message) += Location.File) += ":") += std::to_string(Location.line)) += " ")+= Location.Function); }
-    };
+        std::string toLog() const { return ((((((std::to_string(static_cast<int>(ErrorCode)) += Message) += Location.File) += ":") += std::to_string(Location.line)) += " ")+= Location.Function); }
     };
 
     template<typename E>

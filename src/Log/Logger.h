@@ -20,8 +20,8 @@
 #define CURRENT_LOCATION_LOG ::Log::SourceLocation{__FILE__, __func__, __LINE__}
 
 #ifndef NDEBUG
-#define DEBUG(msg) Log(Log::LogLevel::DEBUG, msg, CURRENT_LOCATION_LOG)
-#define VDEBUG(...) var_log(Log::LogLevel::DEBUG, CURRENT_LOCATION_LOG, __VA_ARGS__)
+#define DEBUG(msg) log(Log::LogLevel::DEBUG, msg, CURRENT_LOCATION_LOG)
+#define VDEBUG(...) var_Log(Log::LogLevel::DEBUG, CURRENT_LOCATION_LOG, __VA_ARGS__)
 #else
 #define DEBUG(msg) 
 #define VDEBUG(...)
@@ -40,6 +40,17 @@
 
 
 namespace Log{
+    template<typename T, typename = void>
+    struct has_toLog : std::false_type {};
+
+    template<typename T>
+    struct has_toLog<T, std::void_t<decltype(std::declval<const T&>().toLog())>> : std::true_type {};
+
+    template<typename T>
+    inline constexpr bool has_toLog_v = has_toLog<T>::value;
+
+    template<typename T>
+    inline constexpr bool is_logable_v = std::is_arithmetic_v<T> || std::is_convertible_v<T, std::string> || has_toLog_v<T>;
 
     enum LogLevel{
         DEBUG = 0, INFO, WARNING, ERROR, CRITICAL
@@ -57,8 +68,8 @@ namespace Log{
 
     class Logger{
         public:
-        Logger(const std::string& file){
-            m_logFile.open(file, std::ios::app) : m_logPath(file);
+        Logger(const std::string& file) : m_logPath(file){
+            m_logFile.open(file, std::ios::app);
             if(!m_logFile.is_open())
                 std::cerr << "Failed to open Log file" << "\n";
 
@@ -152,10 +163,10 @@ namespace Log{
         std::string createDeafultEntry(const char* time, LogLevel logLevel, const SourceLocation& location){
             std::string logEntry;
             logEntry.reserve(256);
-            logEntry.append("[").append(time).append("]")
-                    .append(levelToString(logLevel))
-                    .append(": [").append(location.File).append(":").append(std::to_string(location.line)).append(" ").append(location.Function).append("]")
-                    .append("] ");
+            (((((((((((logEntry.append("[")).append(time)).append("]"))
+                    .append(levelToString(logLevel)))
+                    .append(": [")).append(location.File)).append(":")).append(std::to_string(location.line)).append(" ")).append(location.Function)).append("]"))
+                    .append("] "));
             return logEntry;
         }
 
@@ -200,6 +211,21 @@ namespace Log{
                 VERROR("Failed to Rename File", ec.message());
             }
         } 
+
+        void appendToLog(std::string& Log, const char* message){ Log.append(message); }
+        void appendToLog(std::string& Log, std::string_view message) { Log.append(message); }
+        void appendToLog(std::string& Log, const std::string& message) {Log.append(message); }
+        template<typename T>
+        std::enable_if_t<std::is_arithmetic_v<T>, void> 
+            appendToLog(std::string& Log, const T& message){ Log.append(std::to_string(message)); }
+        template<typename T>
+        auto appendToLog(std::string& Log, const T& message) -> decltype(message.toLog(), void()) { Log.append(message.toLog()); }
+        template<typename T>
+        std::enable_if_t<std::is_convertible_v<T, std::string>, void>
+            appendToLog(std::string& Log, const T& message){ Log.append(std::string(message)); }
+        template<typename T> 
+        std::enable_if_t<!is_logable_v<T>, void>
+        appendToLog(std::string& Log, const T&  message) = delete;
 
         private:
         std::ofstream m_logFile;

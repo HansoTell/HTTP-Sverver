@@ -36,7 +36,7 @@ int main(){
 	auto location = CURRENT_LOCATION;
 
 	//warum gibt er den nich als comile fehler
-	LOG_VDEBUG("Test Error Variable", 42, testError, location);
+	LOG_VDEBUG("Test Error Variable", 42, testError);
 
 	std::cin.get();
 
