@@ -14,6 +14,7 @@ bool initHTTP(){
         logDir = "Logs";
     }
 
+    //was wenn schon existiert?
     std::filesystem::create_directory(logDir);
 
     g_Logger = std::make_unique<Log::Logger>(logDir/"app.log");

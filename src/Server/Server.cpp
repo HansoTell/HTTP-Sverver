@@ -12,6 +12,7 @@ namespace http{
 
     bool Server::init(){
 
+        return true;
     }
 
     void Server::run( bool startListeninig ){

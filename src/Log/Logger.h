@@ -37,7 +37,7 @@
 #define CRITICAL(msg) log(Log::LogLevel::CRITICAL, msg, CURRENT_LOCATION_LOG)
 #define VCRITICAL(...) var_Log(Log::LogLevel::CRITICAL, CURRENT_LOCATION_LOG, __VA_ARGS__)
 
-#define MAXLOGSIZE 5*1024*1024
+#define MAXLOGSIZE 1024
 
 //Farben wäre schön
 namespace Log{
@@ -66,10 +66,10 @@ namespace Log{
 
     inline std::ostream& operator<<(std::ostream& os, const SourceLocation& location){ return os << location.File << ":" << location.line << " " << location.Function; }
 
-
     class Logger{
         public:
         Logger(const std::string& file) : m_logPath(file){
+
             m_logFile.open(file, std::ios::app);
             if(!m_logFile.is_open())
                 std::cerr << "Failed to open Log file" << "\n";
@@ -138,6 +138,8 @@ namespace Log{
         }
 
         void logThread(){
+            size_t logFileSize = std::filesystem::file_size(m_logPath);
+
             while( m_running || !m_MessageQueue.empty() ){
                 std::unique_lock<std::mutex> __lock (m_queueMutex);
                 m_cv.wait(__lock, [&]{
@@ -145,14 +147,21 @@ namespace Log{
                 });
 
                 while( !m_MessageQueue.empty() ){
+                    std::string& message = m_MessageQueue.front();
 
-                    changeLogFileIfNeeded();
+                    if( logFileSize + message.size() > MAXLOGSIZE ){
+                        m_logFile.flush();
+                        if( changeLogFileIfNeeded() )
+                            logFileSize = 0;
+                    }
 
-                    m_logFile << m_MessageQueue.front();
+                    logFileSize+=message.size();
+
+                    m_logFile << message;
                     m_MessageQueue.pop();
                 }
-                m_logFile.flush();
             }
+            m_logFile.flush();
         }
 
         void currentTimetoString(char* dest){
@@ -184,12 +193,9 @@ namespace Log{
         }
 
         //problen nach bennenung nur noch letzter eintrag der angezeigt wird
-        void changeLogFileIfNeeded(){
+        bool changeLogFileIfNeeded(){
             if( !std::filesystem::exists(m_logPath) )
-                return;
-            
-            if( std::filesystem::file_size(m_logPath) < MAXLOGSIZE)
-                return;
+                return false;
 
             if( m_logFile.is_open() )
                 m_logFile.close();
@@ -198,11 +204,45 @@ namespace Log{
             char timeBuffer[std::size("yyyy-mm-ddThh:mm:ssZ")];
             std::strftime(timeBuffer, std::size(timeBuffer), "%FT%TZ", std::gmtime(&currTime));
             
-            std::filesystem::path newPath = m_logPath;
-            (newPath += ".") += timeBuffer;
+            const char* datFormat = ".log\0";
+            const char* LogPath_cstr = m_logPath.c_str();
+
+            const char* endOfDatName = strrchr(LogPath_cstr, '.');
+            endOfDatName++;
+            size_t nameSize = static_cast<size_t> (endOfDatName - LogPath_cstr);
+
+            char newLogName[nameSize + strlen(timeBuffer) + strlen(datFormat) + 1]; 
+
+            std::strncpy(newLogName, LogPath_cstr, nameSize);
+            newLogName[nameSize] = '\0';
+            std::strcat(newLogName, timeBuffer);
+            std::strcat(newLogName, datFormat);
+
+            std::string_view newLogName_c (newLogName);
+
+            if( std::filesystem::exists(newLogName_c)){
+                //Probelm was jetzt?
+
+                //alles nicht gut brauchen andere lösung: 
+                // - einfach returnen und sagen wir schrieben bis es einen uniqen namen gibt 
+                // - idee auf ms genau gehen --> beste idee bis jetzt
+                // - nummerierte logs --> problem weil müssen user dinge vorgeben um nach crash zu weiterzählen
+
+
+                //einfach returnen ist dumm ich bin bei 10000 iterations und es hat immernoch nicht keine 2 file rotations also das macht alles kapputt müssen iwie wechseln
+
+                //keine ahnug man keine ahnung man keine ahnung man keine ahnung man keine ahnung man
+
+                m_logFile.open(m_logPath, std::ios::app);
+
+                if( !m_logFile.is_open() )
+                    std::cerr << "Couldt open new Log File after rotating" << "\n";
+
+                    return false;
+            }
 
             std::error_code ec;
-            std::filesystem::rename(m_logPath, newPath, ec);
+            std::filesystem::rename(m_logPath, newLogName_c, ec);
 
             m_logFile.open(m_logPath, std::ios::app);
 
@@ -210,14 +250,12 @@ namespace Log{
                 std::cerr << "Couldt open new Log File after rotating" << "\n";
 
             if( ec ){
-                if( ec == std::errc::file_exists ){
-                    VERROR("Changed Log File to existing File", ec.message());
-                    //Waiting for time to step forward for newm time name
-                    std::this_thread::sleep_for(std::chrono::seconds(1));
-                }else{
-                    VERROR("Failed to Rename File", ec.message());
-                }
+                VERROR("Failed to Rename File", ec.message());
+                
+                return false;
             }
+
+            return true;
         } 
 
         void appendToLog(std::string& Log, const char* message){ Log.append(message); }
