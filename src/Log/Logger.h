@@ -37,7 +37,7 @@
 #define CRITICAL(msg) log(Log::LogLevel::CRITICAL, msg, CURRENT_LOCATION_LOG)
 #define VCRITICAL(...) var_Log(Log::LogLevel::CRITICAL, CURRENT_LOCATION_LOG, __VA_ARGS__)
 
-#define MAXLOGSIZE 1024
+#define MAXLOGSIZE 5*1024*1024
 
 //Farben wäre schön
 namespace Log{
@@ -192,7 +192,6 @@ namespace Log{
             m_MessageQueue.push(std::move(logEntry));
         }
 
-        //problen nach bennenung nur noch letzter eintrag der angezeigt wird
         bool changeLogFileIfNeeded(){
             if( !std::filesystem::exists(m_logPath) )
                 return false;
@@ -200,7 +199,13 @@ namespace Log{
             if( m_logFile.is_open() )
                 m_logFile.close();
 
-            std::time_t currTime = std::time(nullptr);
+            auto now = std::chrono::system_clock::now();
+            auto ns = std::chrono::duration_cast<std::chrono::nanoseconds>(now.time_since_epoch()).count();
+
+            char nsBuff[16];
+            std::snprintf(nsBuff, sizeof(nsBuff), "%ld", ns);
+
+            std::time_t currTime = std::chrono::system_clock::to_time_t(now);
             char timeBuffer[std::size("yyyy-mm-ddThh:mm:ssZ")];
             std::strftime(timeBuffer, std::size(timeBuffer), "%FT%TZ", std::gmtime(&currTime));
             
@@ -211,34 +216,23 @@ namespace Log{
             endOfDatName++;
             size_t nameSize = static_cast<size_t> (endOfDatName - LogPath_cstr);
 
-            char newLogName[nameSize + strlen(timeBuffer) + strlen(datFormat) + 1]; 
+            char newLogName[nameSize + strlen(timeBuffer) + strlen(nsBuff) + strlen(datFormat) + 1]; 
 
             std::strncpy(newLogName, LogPath_cstr, nameSize);
             newLogName[nameSize] = '\0';
             std::strcat(newLogName, timeBuffer);
+            std::strcat(newLogName, nsBuff);
             std::strcat(newLogName, datFormat);
 
             std::string_view newLogName_c (newLogName);
 
             if( std::filesystem::exists(newLogName_c)){
-                //Probelm was jetzt?
-
-                //alles nicht gut brauchen andere lösung: 
-                // - einfach returnen und sagen wir schrieben bis es einen uniqen namen gibt 
-                // - idee auf ms genau gehen --> beste idee bis jetzt
-                // - nummerierte logs --> problem weil müssen user dinge vorgeben um nach crash zu weiterzählen
-
-
-                //einfach returnen ist dumm ich bin bei 10000 iterations und es hat immernoch nicht keine 2 file rotations also das macht alles kapputt müssen iwie wechseln
-
-                //keine ahnug man keine ahnung man keine ahnung man keine ahnung man keine ahnung man
-
                 m_logFile.open(m_logPath, std::ios::app);
 
                 if( !m_logFile.is_open() )
                     std::cerr << "Couldt open new Log File after rotating" << "\n";
 
-                    return false;
+                return false;
             }
 
             std::error_code ec;

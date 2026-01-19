@@ -34,10 +34,6 @@ int main(){
 
 	Error::ErrorValue<http::HTTPErrors> testError = {http::HTTPErrors::bsp, "Huso", CURRENT_LOCATION };
 
-	for(int i = 0; i<10000; i++){
-		LOG_VDEBUG("Test Error Variable", 42, testError, MAKE_ERROR(http::HTTPErrors::bsp, "Makro Test"), i);
-	}
-
 	std::cin.get();
 
 	http::HTTP_Kill();
