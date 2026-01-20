@@ -4,6 +4,7 @@
 #include <queue>
 
 #include "../Listener/NetworkManager.h"
+#include "../Listener/listener.h"
 
 
 namespace http{
@@ -27,6 +28,7 @@ namespace http{
         //vielleicht sogar global variable also wird schon sehr viel gebraucht
         bool quit = false;
         std::queue<const char*> messageQueue;
+        std::unique_ptr<Listener> m_Listener;
     };
 
 }

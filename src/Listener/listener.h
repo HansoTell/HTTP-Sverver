@@ -6,6 +6,8 @@
 #include <thread>
 
 #include "NetworkManager.h"
+#include "../Server/HTTPinitialization.h"
+#include "../Error/Errorcodes.h"
 
 namespace http{
 
@@ -21,11 +23,18 @@ public:
     void startListening( uint16 port );
     void stopListening();
 private:
-    bool init( uint16 port );
+    Result<void> init();
     void listen();
 private:
     HSteamListenSocket m_Socket;
     HSteamNetPollGroup m_pollGroup;
+
+    //Threading stuff
+    std::atomic<bool> m_running;
+    std::atomic<bool> m_listening = false;
+    std::atomic<u_int16_t> m_port;
+    std::mutex m_ListenMutex;
+    std::condition_variable m_ListenCV;
 };
 
 }

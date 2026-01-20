@@ -11,6 +11,8 @@ namespace http{
     }
 
     bool Server::init(){
+        //Listener initialization in Konstruktor oder doch nur die init methode aufrufen
+        m_Listener = std::make_unique<Listener> ();
 
         return true;
     }
