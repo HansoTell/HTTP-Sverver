@@ -39,7 +39,6 @@
 
 #define MAXLOGSIZE 5*1024*1024
 
-//Farben wäre schön
 namespace Log{
     template<typename T, typename = void>
     struct has_toLog : std::false_type {};
@@ -173,10 +172,9 @@ namespace Log{
         std::string createDeafultEntry(const char* time, LogLevel logLevel, const SourceLocation& location){
             std::string logEntry;
             logEntry.reserve(256);
-            logEntry.append("[").append(time).append("]")
+            logEntry.append("[").append(time).append("] ")
                     .append(levelToString(logLevel))
-                    .append(": [").append(location.File).append(":").append(std::to_string(location.line)).append(" ").append(location.Function).append("]")
-                    .append("] ");
+                    .append(": [").append(location.File).append(":").append(std::to_string(location.line)).append(" ").append(location.Function).append("]");
             return logEntry;
         }
 
