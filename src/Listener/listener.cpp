@@ -3,7 +3,10 @@
 
 namespace http{
 
-    Listener::Listener() : m_listening(false), m_running(true){ m_ListenThread = std::thread([this](){ this->listen(); }); }
+    Listener::Listener() : m_listening(false), m_running(true){ 
+        LOG_INFO("Started Listening Thread");
+        m_ListenThread = std::thread([this](){ this->listen(); }); 
+    }
 
     Listener::~Listener(){
         m_running = false;
@@ -11,6 +14,7 @@ namespace http{
 
         if( m_ListenThread.joinable() )
             m_ListenThread.join();
+        LOG_INFO("Stopped Listening Thread");
     }
 
     Result<void> Listener::startListening( u_int16_t port ){
@@ -21,6 +25,8 @@ namespace http{
         m_listening = true;
         m_ListenCV.notify_one();
 
+        LOG_VINFO("Started Listening on Port", port);
+
         return {};
     }
 
@@ -28,6 +34,7 @@ namespace http{
         std::lock_guard<std::mutex> _lock (m_ListenMutex);
         m_listening = false;
         m_ListenCV.notify_one();
+        LOG_INFO("Stopped Listening");
     }
 
     Result<void> Listener::initSocket( u_int16_t port){
@@ -77,11 +84,13 @@ namespace http{
             if( !m_running ) 
                 break;
 
+            LOG_DEBUG("Started Listening While Loop");
             while( m_listening ){
 
                 //poll messegas und son scheiß u know
                 std::this_thread::sleep_for(std::chrono::milliseconds(10));
             }
+            LOG_DEBUG("Left Listening whiole Loop");
             DestroySocket();
         }
     }
@@ -96,5 +105,8 @@ namespace http{
         NetworkManager::Get().m_pInterface->DestroyPollGroup( m_pollGroup );
         NetworkManager::Get().notifySocketDestruction( m_Socket );
         NetworkManager::Get().m_pInterface->CloseListenSocket( m_Socket );
+
+        //uniqer handel oder so für debug ider so wäre schön weil weiß ja niemand was für ein socket jetzt geöffnet oder geschloßen wurde
+        LOG_INFO("Destroyed Socket");
     }
 }
