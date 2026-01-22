@@ -18,21 +18,20 @@ public:
     Listener(Listener&& other) = default;
     ~Listener();
 public:
-    //Soll alle clients verwalten und so und anfragen akzeptieren messages an die messager queue übergeben
-    //Wie bekommen wir message queue??
-    void startListening( uint16 port );
+    Result<void> startListening( uint16 port );
     void stopListening();
 private:
-    Result<void> init();
     void listen();
+
+    Result<void> initSocket( u_int16_t port);
+    void DestroySocket();
 private:
     HSteamListenSocket m_Socket;
     HSteamNetPollGroup m_pollGroup;
 
-    //Threading stuff
+    std::thread m_ListenThread;
     std::atomic<bool> m_running;
-    std::atomic<bool> m_listening = false;
-    std::atomic<u_int16_t> m_port;
+    bool m_listening;
     std::mutex m_ListenMutex;
     std::condition_variable m_ListenCV;
 };

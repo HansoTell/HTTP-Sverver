@@ -15,7 +15,7 @@ namespace http{
         //init aller module aufrufen
         bool init();
         //soll auf anderem thrad laufen ig also soll nicht blockieren der server
-        void run( bool startListening = false );
+        void run();
         void setFileRoot();
 
     public:

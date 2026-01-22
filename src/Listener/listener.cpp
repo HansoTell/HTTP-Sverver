@@ -1,35 +1,40 @@
 #include "listener.h"
 
 
-//Verwaltet der Server oder der Listener seinen listen trhead auf dem gelauscht wird? Eigentlich würde listener ja mehr sinn ergeben das er sich selbst verwaltet
-//aber dann müsste nochmal seperate init funktion aufgerufen werden. aber wäre ja kein ding im listen run methode am anfang listener.init aufrufen und dann hat sich der braten
-//haben dan direkt thread und alles gut
-//Oder sogar im konstruktor und destruktor minimiert das dauerhafrte callen noch besser
-
-//init methode umbennenen total irreführend
 namespace http{
 
-    Listener::Listener(){
-        m_running = true;
-        //Listen thread starten und alles
-    }
-
+    Listener::Listener() : m_listening(false), m_running(true){ m_ListenThread = std::thread([this](){ this->listen(); }); }
 
     Listener::~Listener(){
         m_running = false;
-        //tghread beenden und alles
+        m_ListenCV.notify_all();
+
+        if( m_ListenThread.joinable() )
+            m_ListenThread.join();
     }
 
-    void Listener::startListening( uint16 port ){
+    Result<void> Listener::startListening( u_int16_t port ){
+        std::lock_guard<std::mutex> _lock (m_ListenMutex);
+        if( auto result = initSocket( port ); result.isErr() )
+            return result;
+        
+        m_listening = true;
+        m_ListenCV.notify_one();
 
+        return {};
     }
 
-    //müssen sicher sein das port gesetzt
-    Result<void> Listener::init(){
+    void Listener::stopListening () {
+        std::lock_guard<std::mutex> _lock (m_ListenMutex);
+        m_listening = false;
+        m_ListenCV.notify_one();
+    }
+
+    Result<void> Listener::initSocket( u_int16_t port){
 
         SteamNetworkingIPAddr address;
         address.Clear();
-        address.m_port = m_port;
+        address.m_port = port;
 
         //Set initial Options
         int numOptions = 2;
@@ -42,7 +47,7 @@ namespace http{
 
         if( m_Socket == k_HSteamListenSocket_Invalid){
             auto error = MAKE_ERROR(HTTPErrors::eSocketInitializationFailed, "Failed to initialize Socket");             
-            LOG_VERROR(error, "On Port", m_port);
+            LOG_VERROR(error, "On Port", port);
             return error; 
         }
 
@@ -52,20 +57,14 @@ namespace http{
 
         if( m_pollGroup == k_HSteamNetPollGroup_Invalid ){
             auto error = MAKE_ERROR(HTTPErrors::ePollingGroupInitializationFailed, "Failed to initialize Polling Group");
-            LOG_VERROR(error, "On Port" , m_port);
+            LOG_VERROR(error, "On Port" , port);
             return error; 
         }
 
-        //funktioiert das mit dem void das dann returend wird? wahrscheinlich momentan nicht ig aber einfach anpassungen
-        return;
+        return {};
     }
 
     void Listener::listen(){
-        //muss noch nicht der finale thread methode sein geht nur darum,
-        //2 While schleifen in einander: Eine läuft solange initialisiert erst im destruktor beenden (-> was wenn wartend und dann notyfied?)
-        //Dann init von 
-        //müssen die variablen überhaupt atomic sein wer ändet die
-        //brauchen externe Methoden die dann das start ubnd stop listening bedingen: Also eine Methode die Server aufrfen kann ja setzt listening true oder halt nicht
         std::unique_lock<std::mutex> _lock (m_ListenMutex); 
         while ( m_running )
         {
@@ -78,23 +77,16 @@ namespace http{
             if( !m_running ) 
                 break;
 
-            //Eher soaws wie init_Socket oder so ka was weiß ich
-            //Poert muss iwie rein kommen und das fehl schlagen kann natürlich ein großes Problem
-            //Sogar ganz großes problem weil wie bekomme ich die nachricht raus aus dem Thread ich mein loggen ok aber was machen wir sonst iwiwe muss er ja die nachricht bekommen
-            init();
             while( m_listening ){
 
                 //poll messegas und son scheiß u know
                 std::this_thread::sleep_for(std::chrono::milliseconds(10));
             }
-            //Eher sowas wie destroy Socket oder sowas oder End Connections iwie sowas
-            stopListening();
-
+            DestroySocket();
         }
-        
     }
 
-    void Listener::stopListening(){
+    void Listener::DestroySocket(){
 
         //alles wichtige erst noch handeln oder alle connections einzeln schließen nur demonstration
 

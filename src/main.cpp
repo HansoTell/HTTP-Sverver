@@ -14,9 +14,12 @@ int main(){
 	}
 
 	http::Server s;
+	//hoffentlich nicht
 	s.init();
 	
-	s.run( true );
+	s.run();
+
+	//s.startListening( 80 );
 
 	http::listenForCommands();
 

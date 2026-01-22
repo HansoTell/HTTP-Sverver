@@ -3,9 +3,11 @@
 #include <string_view>
 #include <type_traits>
 #include <variant>
+#include <optional>
 
 #define CURRENT_LOCATION ::Error::SourceLocation{__FILE__, __func__, __LINE__}
 
+//Error message ist noch schei0e sollte man eher so printf type shit machen weil momentan ist das kaka das man keine zahlen und so eingeben kann
 namespace Error {
 
     struct SourceLocation {
@@ -15,6 +17,7 @@ namespace Error {
     };
 
     inline std::ostream& operator<<(std::ostream& os, const SourceLocation& location){ return os << location.File << ":" << location.line << " " << location.Function; }
+
 
 
     template<typename E> 
@@ -68,6 +71,26 @@ namespace Error {
 
         const value_Type& value() { return std::get<value_Type> (m_data); }
         const ErrorType& error() { return std::get<ErrorType> (m_data); }
+    };
+
+
+    template<typename E>
+    class Result<void, E> {
+    public: 
+        using ErrorType = ErrorValue<E>;
+    private:
+        std::optional<ErrorType> m_error;
+    public:
+        Result() = default;
+        Result(const ErrorType& error) : m_error(error) {}
+        Result(ErrorType&& error) : m_error(std::move(error)) {}
+
+        bool isOK() const { return !m_error.has_value(); }
+        bool isErr() const { return m_error.has_value(); }
+
+        explicit operator bool() const { return isOK(); }
+
+        const ErrorType& error() const { return m_error.value(); }
     };
 
 }
