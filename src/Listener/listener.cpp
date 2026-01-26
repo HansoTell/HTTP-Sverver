@@ -86,13 +86,62 @@ namespace http{
 
             LOG_DEBUG("Started Listening While Loop");
             while( m_listening ){
+                pollIncMessages();
+                pollOutMessages();
 
-                //poll messegas und son scheiß u know
                 std::this_thread::sleep_for(std::chrono::milliseconds(10));
             }
             LOG_DEBUG("Left Listening whiole Loop");
             DestroySocket();
         }
+    }
+
+
+    #define MAX_MESSAGES_PER_SESSION 100
+    void Listener::pollIncMessages(){
+
+        int messages_recived_counter = 0;
+
+        while( messages_recived_counter < MAX_MESSAGES_PER_SESSION ){
+            SteamNetworkingMessage_t* pIncMessage = nullptr;
+
+            int message_Recived = NetworkManager::Get().m_pInterface->ReceiveMessagesOnPollGroup(m_pollGroup, &pIncMessage, 1);
+
+            if( message_Recived == 0 )
+                break;
+
+            if( message_Recived < 0 ){
+                //error handeling keine ahnung wie man das im thread machen soll
+                //fatal error methode oder error senden an mein thread oder so keine ahnung?? --> heißt ja connection invalid also socket muss eh erstartet werden oder so keine ahnung
+                //oder abgebrochen werdens
+            }
+
+            std::string message;
+            message.assign((const char*)pIncMessage->m_pData, pIncMessage->m_cbSize);
+
+            //Alterbnative vielleicht performanter alle cachen und erst nach while schleife einfügen --> könnte halt verzögerung erhöhen aber mutex entspannen
+            {
+                std::lock_guard<std::mutex> _lock (m_Queues->m_IncMsgMutex);
+                m_Queues->m_IncomingMessages.push(std::move(message));
+            }
+
+            pIncMessage->Release();            
+
+            messages_recived_counter++;
+        }
+    }
+
+    void Listener::pollOutMessages(){
+        int messages_send_counter = 0;
+
+        while( messages_send_counter < MAX_MESSAGES_PER_SESSION ){
+
+            //wie entfernen wir messages und so, also das wir keine kopien machen und auch nicht löschen und das es passt?? Also leseb wöäre ja ok aber wie senden wir
+            //und wie speichern wir connection das richtige message zu richtigem client kommt... wäre ja schon sinnvoll haha
+
+            //wie geben wir das weiter als tupel der beiden oder als was??? Oder einbinden in den request string?
+        }
+
     }
 
     void Listener::DestroySocket(){

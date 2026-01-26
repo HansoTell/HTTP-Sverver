@@ -5,6 +5,7 @@
 
 #include "../Listener/NetworkManager.h"
 #include "../Listener/listener.h"
+#include "Queues.h"
 
 
 namespace http{
@@ -25,6 +26,7 @@ namespace http{
         ~Server();
 
     private:
+        MessageQueues m_Queues;
         //vielleicht sogar global variable also wird schon sehr viel gebraucht
         bool quit = false;
         std::queue<const char*> messageQueue;

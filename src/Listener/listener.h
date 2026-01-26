@@ -8,6 +8,7 @@
 #include "NetworkManager.h"
 #include "../Server/HTTPinitialization.h"
 #include "../Error/Errorcodes.h"
+#include "../Server/Queues.h"
 
 namespace http{
 
@@ -25,9 +26,14 @@ private:
 
     Result<void> initSocket( u_int16_t port);
     void DestroySocket();
+
+
+    void pollIncMessages();
+    void pollOutMessages();
 private:
     HSteamListenSocket m_Socket;
     HSteamNetPollGroup m_pollGroup;
+    MessageQueues* m_Queues; 
 
     std::thread m_ListenThread;
     std::atomic<bool> m_running;
