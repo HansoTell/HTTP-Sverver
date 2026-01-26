@@ -116,8 +116,9 @@ namespace http{
                 //oder abgebrochen werdens
             }
 
-            std::string message;
-            message.assign((const char*)pIncMessage->m_pData, pIncMessage->m_cbSize);
+            MessageInfo message;
+
+            message.m_Message.assign((const char*) pIncMessage->m_pData, pIncMessage->m_cbSize);
 
             //Alterbnative vielleicht performanter alle cachen und erst nach while schleife einfügen --> könnte halt verzögerung erhöhen aber mutex entspannen
             {
@@ -135,11 +136,20 @@ namespace http{
         int messages_send_counter = 0;
 
         while( messages_send_counter < MAX_MESSAGES_PER_SESSION ){
+            MessageInfo test;
 
-            //wie entfernen wir messages und so, also das wir keine kopien machen und auch nicht löschen und das es passt?? Also leseb wöäre ja ok aber wie senden wir
-            //und wie speichern wir connection das richtige message zu richtigem client kommt... wäre ja schon sinnvoll haha
+            {
+                std::lock_guard<std::mutex> _lock (m_Queues->m_OutMsgMutex);
+                MessageInfo& OutMessage = m_Queues->m_OutGoingQueues.front();
 
-            //wie geben wir das weiter als tupel der beiden oder als was??? Oder einbinden in den request string?
+                //wie bekomm ich das raus
+
+                //moven und dann poppen? 
+                m_Queues->m_OutGoingQueues.pop();
+            }
+
+            //nicht fest zudem sollten mal Networkmanager::get ersetzten durch eifnach gespeicherten eigene referenz kein sinn
+            NetworkManager::Get().m_pInterface->SendMessageToConnection(test.m_Connection, &test.m_Message, test.m_Message.size(), 0, nullptr);
         }
 
     }
