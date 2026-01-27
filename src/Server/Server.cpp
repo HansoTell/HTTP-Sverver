@@ -18,6 +18,7 @@ namespace http{
         return true;
     }
 
+    //brauchen ja eigenen server thread der dann auch errors polled. Muss er ja 
     //man muss explizit start listening aufrufen ganz wichtig
     void Server::run(){
         //aber run muss auch selbst auf eigenem thgread laufen kann ja unten eigene private methode haben die auf gquit wartet oder so aber merh übr threads lernen und so

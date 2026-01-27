@@ -4,6 +4,7 @@
 #include <stdint.h>
 #include <chrono>
 #include <thread>
+#include <cassert>
 
 #include "NetworkManager.h"
 #include "../Server/HTTPinitialization.h"
@@ -31,13 +32,14 @@ private:
     void pollIncMessages();
     void pollOutMessages();
 private:
+    ISteamNetworkingSockets* m_pInterface;
     HSteamListenSocket m_Socket;
     HSteamNetPollGroup m_pollGroup;
     MessageQueues* m_Queues; 
 
     std::thread m_ListenThread;
     std::atomic<bool> m_running;
-    bool m_listening;
+    std::atomic<bool> m_listening;
     std::mutex m_ListenMutex;
     std::condition_variable m_ListenCV;
 };

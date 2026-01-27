@@ -4,6 +4,9 @@
 namespace http{
 
     Listener::Listener() : m_listening(false), m_running(true){ 
+        m_pInterface = NetworkManager::Get().m_pInterface;
+        assert(m_pInterface != nullptr);
+        
         LOG_INFO("Started Listening Thread");
         m_ListenThread = std::thread([this](){ this->listen(); }); 
     }
@@ -50,7 +53,7 @@ namespace http{
         options[1].SetInt32(k_ESteamNetworkingConfig_TimeoutConnected, 5000);
 
 
-        m_Socket = NetworkManager::Get().m_pInterface->CreateListenSocketIP(address, numOptions, options);
+        m_Socket = m_pInterface->CreateListenSocketIP(address, numOptions, options);
 
         if( m_Socket == k_HSteamListenSocket_Invalid){
             auto error = MAKE_ERROR(HTTPErrors::eSocketInitializationFailed, "Failed to initialize Socket");             
@@ -60,7 +63,7 @@ namespace http{
 
         NetworkManager::Get().startCallbacksIfNeeded();
 
-        m_pollGroup = NetworkManager::Get().m_pInterface->CreatePollGroup();
+        m_pollGroup = m_pInterface->CreatePollGroup();
 
         if( m_pollGroup == k_HSteamNetPollGroup_Invalid ){
             auto error = MAKE_ERROR(HTTPErrors::ePollingGroupInitializationFailed, "Failed to initialize Polling Group");
@@ -86,8 +89,8 @@ namespace http{
 
             LOG_DEBUG("Started Listening While Loop");
             while( m_listening ){
-                pollIncMessages();
                 pollOutMessages();
+                pollIncMessages();
 
                 std::this_thread::sleep_for(std::chrono::milliseconds(10));
             }
@@ -105,22 +108,27 @@ namespace http{
         while( messages_recived_counter < MAX_MESSAGES_PER_SESSION ){
             SteamNetworkingMessage_t* pIncMessage = nullptr;
 
-            int message_Recived = NetworkManager::Get().m_pInterface->ReceiveMessagesOnPollGroup(m_pollGroup, &pIncMessage, 1);
+            int message_Recived = m_pInterface->ReceiveMessagesOnPollGroup(m_pollGroup, &pIncMessage, 1);
 
             if( message_Recived == 0 )
                 break;
 
             if( message_Recived < 0 ){
-                //error handeling keine ahnung wie man das im thread machen soll
-                //fatal error methode oder error senden an mein thread oder so keine ahnung?? --> heißt ja connection invalid also socket muss eh erstartet werden oder so keine ahnung
-                //oder abgebrochen werdens
+
+                std::lock_guard<std::mutex> _lock (m_Queues->m_ErrorQMutex);
+
+                auto err = MAKE_ERROR(HTTPErrors::ePollGroupHandlerInvalid, "PollGroup Handler invalid on trying to recive Messages");
+                LOG_VERROR(err);
+                m_Queues->m_ErrorQueue.push(err);
+
+                //Thread pausieren bis server entscheidung getroffen hat wie weiter geht
+                m_listening = false;
             }
 
             MessageInfo message;
 
             message.m_Message.assign((const char*) pIncMessage->m_pData, pIncMessage->m_cbSize);
 
-            //Alterbnative vielleicht performanter alle cachen und erst nach while schleife einfügen --> könnte halt verzögerung erhöhen aber mutex entspannen
             {
                 std::lock_guard<std::mutex> _lock (m_Queues->m_IncMsgMutex);
                 m_Queues->m_IncomingMessages.push(std::move(message));
@@ -133,23 +141,23 @@ namespace http{
     }
 
     void Listener::pollOutMessages(){
-        int messages_send_counter = 0;
 
-        while( messages_send_counter < MAX_MESSAGES_PER_SESSION ){
-            MessageInfo test;
+        int messages_send_counter = 0;
+        
+        while( !m_Queues->m_OutGoingQueues.empty() && messages_send_counter < MAX_MESSAGES_PER_SESSION ){
+            MessageInfo OutMessage;
 
             {
                 std::lock_guard<std::mutex> _lock (m_Queues->m_OutMsgMutex);
                 MessageInfo& OutMessage = m_Queues->m_OutGoingQueues.front();
 
-                //wie bekomm ich das raus
+                OutMessage = std::move(m_Queues->m_OutGoingQueues.front());
 
-                //moven und dann poppen? 
                 m_Queues->m_OutGoingQueues.pop();
             }
 
-            //nicht fest zudem sollten mal Networkmanager::get ersetzten durch eifnach gespeicherten eigene referenz kein sinn
-            NetworkManager::Get().m_pInterface->SendMessageToConnection(test.m_Connection, &test.m_Message, test.m_Message.size(), 0, nullptr);
+            const char* msg_c = OutMessage.m_Message.c_str();
+            m_pInterface->SendMessageToConnection(OutMessage.m_Connection, &msg_c, (u_int32_t)strlen(msg_c), k_nSteamNetworkingSend_Reliable, nullptr);
         }
 
     }
@@ -161,9 +169,9 @@ namespace http{
 
         //muss ich das socket auf 0 setzten oder so? damit dann nicht falsche dinge passieren
         //muss ich poll group auf null setzten oder so und mus ich checkenb ob false returned wird
-        NetworkManager::Get().m_pInterface->DestroyPollGroup( m_pollGroup );
+        m_pInterface->DestroyPollGroup( m_pollGroup );
         NetworkManager::Get().notifySocketDestruction( m_Socket );
-        NetworkManager::Get().m_pInterface->CloseListenSocket( m_Socket );
+        m_pInterface->CloseListenSocket( m_Socket );
 
         //uniqer handel oder so für debug ider so wäre schön weil weiß ja niemand was für ein socket jetzt geöffnet oder geschloßen wurde
         LOG_INFO("Destroyed Socket");

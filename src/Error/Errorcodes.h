@@ -3,6 +3,6 @@
 namespace http {
 
     enum HTTPErrors {
-        bsp = 0, eSocketInitializationFailed, ePollingGroupInitializationFailed
+        bsp = 0, eSocketInitializationFailed, ePollingGroupInitializationFailed, ePollGroupHandlerInvalid
     };
 }

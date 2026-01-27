@@ -24,6 +24,10 @@ namespace http{
         Server(const Server& other) = default;
         Server(Server&& other) = default;
         ~Server();
+    public:
+
+    private:
+        void pollErrorQueue();
 
     private:
         MessageQueues m_Queues;
