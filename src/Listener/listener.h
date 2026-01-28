@@ -20,7 +20,7 @@ public:
     Listener(Listener&& other) = default;
     ~Listener();
 public:
-    Result<void> startListening( uint16 port );
+    Result<void> startListening( u_int16_t port );
     void stopListening();
 private:
     void listen();

@@ -13,12 +13,9 @@ namespace http{
 
     class Server {
     public:
-        //init aller module aufrufen
-        bool init();
-        //soll auf anderem thrad laufen ig also soll nicht blockieren der server
-        void run();
         void setFileRoot();
-
+        void startListening( u_int16_t port );
+        void stopListening();
     public:
         Server();
         Server(const Server& other) = default;
@@ -27,13 +24,15 @@ namespace http{
     public:
 
     private:
-        void pollErrorQueue();
+        void run();
+        void pollIncMessages();
+        void pollErrorMessages();
 
     private:
+        std::thread m_ServerThread;
+        std::atomic<bool> m_bQuit = false;
+
         MessageQueues m_Queues;
-        //vielleicht sogar global variable also wird schon sehr viel gebraucht
-        bool quit = false;
-        std::queue<const char*> messageQueue;
         std::unique_ptr<Listener> m_Listener;
     };
 
