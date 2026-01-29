@@ -31,17 +31,17 @@ namespace http{
 
     void Server::pollIncMessages(){
         //könnten hier auch wieder ein limit machen dass errors nicht auf der strecke bleiben oder antowrten ode rso
+        //vor allem wenn keine threads mehr frei sind muss breaked werden sonst dauerhaft warten
         while ( true ) {
-            {
-                std::lock_guard<std::mutex> _lock (m_Queues.m_IncMsgMutex);
-                if( m_Queues.m_IncomingMessages.empty() )
-                    return;
-            }
-                
-            //viel moven
-            m_CPUWorkers->assignTask([]{});
-        }
+            std::lock_guard<std::mutex> _lock (m_Queues.m_IncMsgMutex);
+            if( m_Queues.m_IncomingMessages.empty() )
+                return;
 
+            //mutable?
+            m_CPUWorkers->assignTask([this, req = std::move(m_Queues.m_IncomingMessages.front() )]()  {
+                this->parseRequest(std::move(req));
+            });
+        }
     }
 
     void Server::pollErrorMessages(){
