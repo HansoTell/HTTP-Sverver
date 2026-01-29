@@ -125,7 +125,7 @@ namespace http{
                 m_listening = false;
             }
 
-            MessageInfo message;
+            Request message;
 
             message.m_Message.assign((const char*) pIncMessage->m_pData, pIncMessage->m_cbSize);
 
@@ -144,12 +144,17 @@ namespace http{
 
         int messages_send_counter = 0;
         
-        while( !m_Queues->m_OutGoingQueues.empty() && messages_send_counter < MAX_MESSAGES_PER_SESSION ){
-            MessageInfo OutMessage;
+        while( messages_send_counter < MAX_MESSAGES_PER_SESSION ){
+            Request OutMessage;
 
             {
                 std::lock_guard<std::mutex> _lock (m_Queues->m_OutMsgMutex);
-                MessageInfo& OutMessage = m_Queues->m_OutGoingQueues.front();
+
+                //hoffen das das aus while breacked
+                if( m_Queues->m_OutGoingQueues.empty() )
+                    break;
+
+                Request& OutMessage = m_Queues->m_OutGoingQueues.front();
 
                 OutMessage = std::move(m_Queues->m_OutGoingQueues.front());
 
