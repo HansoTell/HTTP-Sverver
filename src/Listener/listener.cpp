@@ -172,11 +172,25 @@ namespace http{
 
         //alles wichtige erst noch handeln oder alle connections einzeln schließen nur demonstration
 
+        auto connectionList = NetworkManager::Get().getClientList( m_Socket );
+        if( connectionList.isErr() ){
+            //Handeln IG oder einfach abbrechnen mal schaeun
 
-        //muss ich poll group auf null setzten oder so und mus ich checkenb ob false returned wird
-        m_pInterface->DestroyPollGroup( m_pollGroup );
-        NetworkManager::Get().notifySocketDestruction( m_Socket );
+            return;
+        }
+
+        for( auto con : connectionList.value() ){
+            //was machen wir senden deafult response oder senden wir nichts oder denen die noch nichts gesendet haben keine ahnung wird hiuer gehandelt auf jeden
+
+            m_pInterface->CloseConnection(con, 0, nullptr, false);
+        }
+
         m_pInterface->CloseListenSocket( m_Socket );
+        m_Socket = k_HSteamListenSocket_Invalid;
+        NetworkManager::Get().notifySocketDestruction( m_Socket );
+
+        m_pInterface->DestroyPollGroup( m_pollGroup );
+        m_pollGroup = k_HSteamNetPollGroup_Invalid;
 
         //uniqer handel oder so für debug ider so wäre schön weil weiß ja niemand was für ein socket jetzt geöffnet oder geschloßen wurde
         LOG_INFO("Destroyed Socket");
