@@ -9,6 +9,11 @@
 #include<unordered_set>
 #include <condition_variable>
 #include <atomic>
+#include <unordered_map>
+
+#include "../Error/Error.h"
+#include "../Error/Errorcodes.h"
+#include "../Server/HTTPinitialization.h"
 
 
 //Eine sache die ich dneke also soweit ich weiß laufen callbacks auch für einzelne sockets.
@@ -32,6 +37,9 @@ public:
 
     void notifySocketCreation( HSteamListenSocket createdSocket );
     void notifySocketDestruction( HSteamListenSocket destroyedSocket );
+
+    Result<const std::vector<HSteamNetConnection>&> getClientList( HSteamListenSocket socket) const { if(m_SocketClientsMap.find(socket) != m_SocketClientsMap.end()){ return m_SocketClientsMap.at(socket); }else { MAKE_ERROR(HTTPErrors::eInvalidSocket, "No Such SOcket found"); } }
+
 public:
     static void OnConnectionStatusChangedCallback( SteamNetConnectionStatusChangedCallback_t *pInfo ){ NetworkManager::Get().callbackManager(pInfo); }
 public:
@@ -46,10 +54,7 @@ private:
     std::thread m_CallBackThread;
     std::atomic<bool> m_running { true };
 
-
-    std::unordered_set<HSteamListenSocket> m_all_sockets;
-    //erstmal keine date und distinction von conenctions brauchen eig hier nicht, dann map 
-    std::unordered_set<HSteamNetConnection> m_all_connections;
+    std::unordered_map<HSteamListenSocket, std::vector<HSteamNetConnection>> m_SocketClientsMap;
 };
 
 }

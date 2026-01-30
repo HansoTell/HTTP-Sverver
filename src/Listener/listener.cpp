@@ -123,7 +123,6 @@ namespace http{
 
                 //Thread pausieren bis server entscheidung getroffen hat wie weiter geht
                 m_listening = false;
-                //auch hier hoffen das das die while schleife breaked
                 break;
             }
 
@@ -174,7 +173,6 @@ namespace http{
         //alles wichtige erst noch handeln oder alle connections einzeln schließen nur demonstration
 
 
-        //muss ich das socket auf 0 setzten oder so? damit dann nicht falsche dinge passieren
         //muss ich poll group auf null setzten oder so und mus ich checkenb ob false returned wird
         m_pInterface->DestroyPollGroup( m_pollGroup );
         NetworkManager::Get().notifySocketDestruction( m_Socket );

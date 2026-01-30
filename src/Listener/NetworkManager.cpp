@@ -49,7 +49,8 @@ void NetworkManager::pollConnectionChanges(){
             std::this_thread::sleep_for(std::chrono::milliseconds(10));
 
             std::lock_guard<std::mutex> lock(m_connection_lock);
-            if( m_all_sockets.empty() && m_all_connections.empty()  )
+            //funktioniert das beim erasen
+            if( m_SocketClientsMap.empty() )
                 m_Connections_open = false;
         }
 
@@ -59,15 +60,13 @@ void NetworkManager::pollConnectionChanges(){
 
 void NetworkManager::notifySocketCreation( HSteamListenSocket createdSocket ){
     std::lock_guard<std::mutex> lock(m_connection_lock);
-    m_all_sockets.insert( createdSocket );
+    m_SocketClientsMap.emplace(createdSocket, std::vector<HSteamNetConnection> (64));
 } 
 
 void NetworkManager::notifySocketDestruction( HSteamListenSocket destroyedSocket ){
 
-    //werden die gekillten connections vernünftig entfernt dabei?
-
     std::lock_guard<std::mutex> lock(m_connection_lock);
-    m_all_connections.erase(destroyedSocket);
+    m_SocketClientsMap.erase( destroyedSocket );
 }
 
 }
