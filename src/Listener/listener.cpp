@@ -123,6 +123,8 @@ namespace http{
 
                 //Thread pausieren bis server entscheidung getroffen hat wie weiter geht
                 m_listening = false;
+                //auch hier hoffen das das die while schleife breaked
+                break;
             }
 
             Request message;
@@ -130,8 +132,8 @@ namespace http{
             message.m_Message.assign((const char*) pIncMessage->m_pData, pIncMessage->m_cbSize);
 
             {
-                std::lock_guard<std::mutex> _lock (m_Queues->m_IncMsgMutex);
-                m_Queues->m_IncomingMessages.push(std::move(message));
+                std::lock_guard<std::mutex> _lock (m_Queues->m_NotParsedQMutex);
+                m_Queues->m_NotParsedMessages.push(std::move(message));
             }
 
             pIncMessage->Release();            
@@ -148,17 +150,17 @@ namespace http{
             Request OutMessage;
 
             {
-                std::lock_guard<std::mutex> _lock (m_Queues->m_OutMsgMutex);
+                std::lock_guard<std::mutex> _lock (m_Queues->m_ResponsesQMutex);
 
                 //hoffen das das aus while breacked
-                if( m_Queues->m_OutGoingQueues.empty() )
+                if( m_Queues->m_Responses.empty() )
                     break;
 
-                Request& OutMessage = m_Queues->m_OutGoingQueues.front();
+                Request& OutMessage = m_Queues->m_Responses.front();
 
-                OutMessage = std::move(m_Queues->m_OutGoingQueues.front());
+                OutMessage = std::move(m_Queues->m_Responses.front());
 
-                m_Queues->m_OutGoingQueues.pop();
+                m_Queues->m_Responses.pop();
             }
 
             const char* msg_c = OutMessage.m_Message.c_str();

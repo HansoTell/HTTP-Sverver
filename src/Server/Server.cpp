@@ -12,7 +12,6 @@ namespace http{
         if( m_ServerThread.joinable() )
             m_ServerThread.join();
 
-
         //welche reihenfolge?
         m_CPUWorkers.reset( nullptr );
         m_APIWorkers.reset( nullptr );
@@ -30,17 +29,17 @@ namespace http{
     }
 
     void Server::pollIncMessages(){
-        //könnten hier auch wieder ein limit machen dass errors nicht auf der strecke bleiben oder antowrten ode rso
-        //vor allem wenn keine threads mehr frei sind muss breaked werden sonst dauerhaft warten
-        while ( true ) {
-            std::lock_guard<std::mutex> _lock (m_Queues.m_IncMsgMutex);
-            if( m_Queues.m_IncomingMessages.empty() )
-                return;
+        #define REQUEST_LIMIT_PER_SESSION 100
+        u_int16_t limitCounter = 0; 
 
-            //mutable?
-            m_CPUWorkers->assignTask([this, req = std::move(m_Queues.m_IncomingMessages.front() )]()  {
+        std::lock_guard<std::mutex> _lock (m_Queues.m_NotParsedQMutex);
+        while(limitCounter < REQUEST_LIMIT_PER_SESSION && !m_Queues.m_NotParsedMessages.empty() )
+        {
+
+            m_CPUWorkers->assignTask([this, req = std::move(m_Queues.m_NotParsedMessages.front() )]()  {
                 this->parseRequest(std::move(req));
             });
+            limitCounter++;
         }
     }
 
@@ -54,6 +53,7 @@ namespace http{
     //senden
 
     //mit move arbeiten wollen das ja nicht kopieren aber soweit ich weiß funktioniert das so mit moven gut
+    //muss eh in ein anderes modul da kann man sich dann gedaniken machen
     void Server::parseRequest( Request httpRequest ){
 
     }

@@ -7,14 +7,12 @@
 #include "../Error/Error.h"
 
 namespace http {
-
-    //müssen alles an queues oder zentrale wartende queue?? auf länge überprüfen, damit nicht zu viele warten und dann vielleciht anfragen blckiert werden
-    //oder nur cpu thread pool queueu ob da viel wartet?? oder auch andere ernst keine ahnung glaube aber das was da steht
+    //länge von queues begrenzen 
     //länge von queues auch loggen
     //und mergen wir inc message queue mit aiting api queue -> unbearbeiteteNachrichtenQueue --> wie könnte man zwischen unfinished und api waiting unterscheiden
-    //zudem out queue auch toter name irgendwie DoneRequests oder answers oder so so toter name
     //zudem nicht shcön das alle queues so zersprengt sind --> könnten auch diese queues einfach im listener public speichern oder so und dann error queue als referenz oder so
     //dann gibt es wenigstens klare ownerships
+    //sehr stark überlegen die queues in listener zu legen bräuchten dafür baer thred save queue oder halt mutex auch dazu
 struct Request{
     u_int32_t m_Connection;
     std::string m_Message;
@@ -29,11 +27,11 @@ struct Request{
 
 struct MessageQueues{
 
-    std::queue<Request> m_IncomingMessages;
-    std::mutex m_IncMsgMutex;
+    std::queue<Request> m_NotParsedMessages;
+    std::mutex m_NotParsedQMutex;
 
-    std::queue<Request> m_OutGoingQueues;
-    std::mutex m_OutMsgMutex;
+    std::queue<Request> m_Responses;
+    std::mutex m_ResponsesQMutex;
 
     //kann invalid poll group error on listener enthalten
     std::queue<Error::ErrorValue<HTTPErrors>> m_ErrorQueue;
