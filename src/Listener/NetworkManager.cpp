@@ -1,6 +1,8 @@
 
 #include "NetworkManager.h"
 
+#include <chrono>
+
 namespace http{
 
 void NetworkManager::init(){

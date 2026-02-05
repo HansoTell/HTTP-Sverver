@@ -1,9 +1,7 @@
 #pragma once
 
 #include <steam/steamnetworkingsockets.h>
-#include <queue>
 
-#include "../Listener/NetworkManager.h"
 #include "../Listener/listener.h"
 #include "Queues.h"
 #include "ThreadPool.h"
@@ -19,8 +17,8 @@ namespace http{
         void stopListening() { m_Listener->stopListening(); }
     public:
         Server();
-        Server(const Server& other) = default;
-        Server(Server&& other) = default;
+        Server(const Server& other) = delete;
+        Server(Server&& other) = delete;
         ~Server();
     public:
 

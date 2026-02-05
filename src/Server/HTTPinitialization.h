@@ -2,12 +2,10 @@
 
 
 #include <steam/steamnetworkingsockets.h>
-#include <filesystem>
 #include <memory>
 
 #include "../Error/Error.h"
 #include "../Error/Errorcodes.h"
-#include "../Listener/NetworkManager.h"
 #include "../Log/Logger.h"
 
 #ifndef NDEBUG

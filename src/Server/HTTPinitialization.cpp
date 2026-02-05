@@ -1,5 +1,8 @@
 #include "HTTPinitialization.h"
 
+#include "../Listener/NetworkManager.h"
+#include <filesystem>
+
 namespace http{
 
 bool isHTTPInitialized = false;

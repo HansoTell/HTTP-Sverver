@@ -4,14 +4,11 @@
 #include <steam/isteamnetworkingutils.h>
 #include <vector>
 #include <thread>
-#include <chrono>
 #include <mutex>
-#include<unordered_set>
 #include <condition_variable>
 #include <atomic>
 #include <unordered_map>
 
-#include "../Error/Error.h"
 #include "../Error/Errorcodes.h"
 #include "../Server/HTTPinitialization.h"
 
@@ -38,7 +35,7 @@ public:
     void notifySocketCreation( HSteamListenSocket createdSocket );
     void notifySocketDestruction( HSteamListenSocket destroyedSocket );
 
-    Result<const std::vector<HSteamNetConnection>&> getClientList( HSteamListenSocket socket) const { if(m_SocketClientsMap.find(socket) != m_SocketClientsMap.end()){ return m_SocketClientsMap.at(socket); }else { MAKE_ERROR(HTTPErrors::eInvalidSocket, "No Such SOcket found"); } }
+    Result<const std::vector<HSteamNetConnection>*> getClientList( HSteamListenSocket socket) const { if(m_SocketClientsMap.find(socket) != m_SocketClientsMap.end()){ return &(m_SocketClientsMap.at(socket)); }else { return MAKE_ERROR(HTTPErrors::eInvalidSocket, "No Such SOcket found"); } }
 
 public:
     static void OnConnectionStatusChangedCallback( SteamNetConnectionStatusChangedCallback_t *pInfo ){ NetworkManager::Get().callbackManager(pInfo); }

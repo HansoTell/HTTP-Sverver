@@ -1,6 +1,5 @@
 #include <iostream>
 #include <stdint.h>
-#include <stdio.h>
 #include <sys/socket.h>
 
 #include "Server/Server.h"
@@ -14,12 +13,8 @@ int main(){
 	}
 
 	http::Server s;
-	//hoffentlich nicht
-	s.init();
-	
-	s.run();
 
-	//s.startListening( 80 );
+	s.startListening( 80 );
 
 	http::listenForCommands();
 

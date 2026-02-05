@@ -179,7 +179,7 @@ namespace http{
             return;
         }
 
-        for( auto con : connectionList.value() ){
+        for( auto con : *(connectionList.value()) ){
             //was machen wir senden deafult response oder senden wir nichts oder denen die noch nichts gesendet haben keine ahnung wird hiuer gehandelt auf jeden
 
             m_pInterface->CloseConnection(con, 0, nullptr, false);

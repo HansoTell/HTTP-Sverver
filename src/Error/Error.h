@@ -4,6 +4,7 @@
 #include <type_traits>
 #include <variant>
 #include <optional>
+#include <iostream>
 
 #define CURRENT_LOCATION ::Error::SourceLocation{__FILE__, __func__, __LINE__}
 

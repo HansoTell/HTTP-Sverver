@@ -4,7 +4,7 @@ namespace http {
 
     ThreadPool::ThreadPool( u_int32_t numWorkers ) : m_Workers(numWorkers), m_running(true) {
         for( std::thread& worker : m_Workers)
-            worker = std::thread( workerLoop );
+            worker = std::thread( [this](){ this->workerLoop(); } );
     }
 
     ThreadPool::~ThreadPool() {
