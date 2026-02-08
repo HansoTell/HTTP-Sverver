@@ -1,6 +1,5 @@
 #include <iostream>
 #include <stdint.h>
-#include <sys/socket.h>
 
 #include "Server/Server.h"
 #include "Server/HTTPinitialization.h"

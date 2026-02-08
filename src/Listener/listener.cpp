@@ -1,5 +1,10 @@
 #include "listener.h"
 
+#include "../Error/Errorcodes.h"
+#include "NetworkManager.h"
+#include <chrono>
+#include <cstring>
+
 
 namespace http{
 
@@ -20,9 +25,9 @@ namespace http{
         LOG_INFO("Stopped Listening Thread");
     }
 
-    Result<void> Listener::startListening( u_int16_t port ){
+    Result<void> Listener::startListening( u_int16_t port, const char* socketName ){
         std::lock_guard<std::mutex> _lock (m_ListenMutex);
-        if( auto result = initSocket( port ); result.isErr() )
+        if( auto result = initSocket( port, socketName ); result.isErr() )
             return result;
         
         m_listening = true;
@@ -40,7 +45,7 @@ namespace http{
         LOG_INFO("Stopped Listening");
     }
 
-    Result<void> Listener::initSocket( u_int16_t port){
+    Result<void> Listener::initSocket( u_int16_t port, const char* socketName ){
 
         SteamNetworkingIPAddr address;
         address.Clear();
@@ -70,6 +75,15 @@ namespace http{
             LOG_VERROR(error, "On Port" , port);
             return error; 
         }
+
+        //Socket namen Setzten
+        if( !socketName ){
+            std::strncpy(m_SocketName, "Deafult Socket Name", 512);
+        }else {
+            std::strncpy(m_SocketName, socketName, 512);
+        }
+
+        NetworkManager::Get().notifySocketCreation( m_Socket );
 
         return {};
     }
@@ -170,8 +184,6 @@ namespace http{
 
     void Listener::DestroySocket(){
 
-        //alles wichtige erst noch handeln oder alle connections einzeln schließen nur demonstration
-
         auto connectionList = NetworkManager::Get().getClientList( m_Socket );
         if( connectionList.isErr() ){
             //Handeln IG oder einfach abbrechnen mal schaeun
@@ -192,7 +204,6 @@ namespace http{
         m_pInterface->DestroyPollGroup( m_pollGroup );
         m_pollGroup = k_HSteamNetPollGroup_Invalid;
 
-        //uniqer handel oder so für debug ider so wäre schön weil weiß ja niemand was für ein socket jetzt geöffnet oder geschloßen wurde
-        LOG_INFO("Destroyed Socket");
+        LOG_VINFO("Destroyed Socket:", m_SocketName);
     }
 }

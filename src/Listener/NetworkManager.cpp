@@ -6,6 +6,7 @@
 namespace http{
 
 void NetworkManager::init(){
+
     SteamNetworkingUtils()->SetGlobalCallback_SteamNetConnectionStatusChanged( OnConnectionStatusChangedCallback );
 
     m_pInterface = SteamNetworkingSockets(); 

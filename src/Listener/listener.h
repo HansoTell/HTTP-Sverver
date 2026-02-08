@@ -2,13 +2,10 @@
 
 #include <steam/steamnetworkingsockets.h>
 #include <stdint.h>
-#include <chrono>
 #include <thread>
 #include <cassert>
 
-#include "NetworkManager.h"
 #include "../Server/HTTPinitialization.h"
-#include "../Error/Errorcodes.h"
 #include "../Server/Queues.h"
 
 namespace http{
@@ -17,15 +14,15 @@ class Listener {
 public:
     Listener();
     Listener(const Listener& other) = delete;
-    Listener(Listener&& other) = default;
+    Listener(Listener&& other) = delete;
     ~Listener();
 public:
-    Result<void> startListening( u_int16_t port );
+    Result<void> startListening( u_int16_t port, const char* socketName );
     void stopListening();
 private:
     void listen();
 
-    Result<void> initSocket( u_int16_t port);
+    Result<void> initSocket( u_int16_t port, const char* socketName );
     void DestroySocket();
 
 
@@ -34,6 +31,7 @@ private:
 private:
     ISteamNetworkingSockets* m_pInterface;
     HSteamListenSocket m_Socket;
+    char m_SocketName[512];
     HSteamNetPollGroup m_pollGroup;
     MessageQueues* m_Queues; 
 

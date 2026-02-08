@@ -11,12 +11,14 @@
 
 #include "../Error/Errorcodes.h"
 #include "../Server/HTTPinitialization.h"
+#include "steam/steamnetworkingtypes.h"
 
 
 //Eine sache die ich dneke also soweit ich weiß laufen callbacks auch für einzelne sockets.
 //Sollte man für jeden socket möglichkeit haben optionen zu geben? Dann individueller Callback oder so wäre idee. Dann würde es satic method im listener geben
 //die called dann networkmanager calback methode mit optionen struct oder int oder so
 namespace http{
+
 class NetworkManager{
 public:
     static NetworkManager& Get(){

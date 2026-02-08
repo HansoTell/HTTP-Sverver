@@ -13,7 +13,7 @@ namespace http{
     class Server {
     public:
         void setFileRoot();
-        void startListening( u_int16_t port ) { m_Listener->startListening( port ); }
+        void startListening( u_int16_t port, const char* socketName = nullptr ) { m_Listener->startListening( port, socketName ); }
         void stopListening() { m_Listener->stopListening(); }
     public:
         Server();
