@@ -1,5 +1,6 @@
 
 #include "NetworkManager.h"
+#include "steam/steamnetworkingtypes.h"
 
 #include <chrono>
 
@@ -23,7 +24,28 @@ void NetworkManager::kill(){
 }
 
 void NetworkManager::callbackManager( SteamNetConnectionStatusChangedCallback_t *pInfo ){
-
+    switch ( pInfo->m_info.m_eState ) {
+        case  k_ESteamNetworkingConnectionState_None:
+            break;
+        case k_ESteamNetworkingConnectionState_Connecting:
+            break;
+        case k_ESteamNetworkingConnectionState_FindingRoute:
+            break;
+        case k_ESteamNetworkingConnectionState_Connected:
+            break;
+        case k_ESteamNetworkingConnectionState_ClosedByPeer:
+            break;
+        case k_ESteamNetworkingConnectionState_ProblemDetectedLocally:
+            break;
+        case k_ESteamNetworkingConnectionState_FinWait:
+            break;
+        case k_ESteamNetworkingConnectionState_Linger:
+            break;
+        case k_ESteamNetworkingConnectionState_Dead:
+            break;
+        default:
+            break;
+    }
 
 }
 
