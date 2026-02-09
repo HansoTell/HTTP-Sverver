@@ -1,6 +1,8 @@
 
 #include "NetworkManager.h"
 #include "steam/steamnetworkingtypes.h"
+#include <algorithm>
+#include <cassert>
 
 #include <chrono>
 
@@ -26,27 +28,59 @@ void NetworkManager::kill(){
 void NetworkManager::callbackManager( SteamNetConnectionStatusChangedCallback_t *pInfo ){
     switch ( pInfo->m_info.m_eState ) {
         case  k_ESteamNetworkingConnectionState_None:
+        {
+            LOG_CRITICAL("Connection Staus Changed NONE");
             break;
+        }
         case k_ESteamNetworkingConnectionState_Connecting:
-            break;
-        case k_ESteamNetworkingConnectionState_FindingRoute:
             break;
         case k_ESteamNetworkingConnectionState_Connected:
             break;
-        case k_ESteamNetworkingConnectionState_ClosedByPeer:
-            break;
         case k_ESteamNetworkingConnectionState_ProblemDetectedLocally:
+        {
+            Disconnected( pInfo );
             break;
-        case k_ESteamNetworkingConnectionState_FinWait:
+        }
+        case k_ESteamNetworkingConnectionState_ClosedByPeer:
+        {
+            Disconnected( pInfo );
             break;
-        case k_ESteamNetworkingConnectionState_Linger:
-            break;
-        case k_ESteamNetworkingConnectionState_Dead:
-            break;
+        }
         default:
+        {
+            LOG_CRITICAL("Undefined Status changed Callback.")  ;
             break;
+        }
     }
 
+}
+
+void NetworkManager::Disconnected( SteamNetConnectionStatusChangedCallback_t *pInfo ){
+
+    const char* pDebugMsg;
+    if( pInfo->m_eOldState != k_ESteamNetworkingConnectionState_Connected ){
+        assert( pInfo->m_eOldState == k_ESteamNetworkingConnectionState_Connecting );
+    }else {
+        if( pInfo->m_info.m_eState == k_ESteamNetworkingConnectionState_ProblemDetectedLocally){
+            pDebugMsg = "Problem detected Locally closing Connection to";
+        }else {
+            pDebugMsg = "Connection Closed by Peer";
+        }
+        LOG_VCRITICAL(pDebugMsg, pInfo->m_info.m_szConnectionDescription, pInfo->m_info.m_eEndReason, pInfo->m_info.m_addrRemote, pInfo->m_info.m_szEndDebug );
+    }
+
+    
+    assert( m_SocketClientsMap.find( pInfo->m_info.m_hListenSocket ) != m_SocketClientsMap.end() );
+
+    //Verbindung entfernen
+    auto& connections = m_SocketClientsMap.at(pInfo->m_info.m_hListenSocket);
+    auto con_it = std::find( connections.begin(), connections.end(), pInfo->m_hConn );
+    assert(con_it != connections.end());
+    connections.erase(con_it);
+
+    SteamNetworkingSockets()->CloseConnection( pInfo->m_hConn, 0, nullptr, false );
+
+    return;
 }
 
 void NetworkManager::startCallbacksIfNeeded() {

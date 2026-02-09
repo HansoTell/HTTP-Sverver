@@ -45,6 +45,8 @@ public:
     ISteamNetworkingSockets* m_pInterface = nullptr;
 private:
     void pollConnectionChanges();
+
+    void Disconnected( SteamNetConnectionStatusChangedCallback_t *pInfo );
 private:
     bool m_Connections_open = true;
     std::mutex m_connection_lock;
