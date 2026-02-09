@@ -9,8 +9,6 @@
 #include <atomic>
 #include <unordered_map>
 
-#include "../Error/Errorcodes.h"
-#include "../Server/HTTPinitialization.h"
 #include "steam/steamnetworkingtypes.h"
 
 
@@ -20,8 +18,14 @@
 namespace http{
 
 struct SocketInfo {
-    HSteamNetPollGroup pollGroup;
-    std::vector<HSteamNetConnection> m_SocketClientsMap;   
+    HSteamNetPollGroup m_PollGroup;
+    std::vector<HSteamNetConnection> m_Clients;   
+
+
+    SocketInfo(HSteamNetConnection pollGroup) : m_PollGroup(pollGroup), m_Clients(64){}
+    SocketInfo(const SocketInfo& other) = default;
+    SocketInfo(SocketInfo&& other) : m_PollGroup(other.m_PollGroup), m_Clients(std::move(other.m_PollGroup)) {}
+    ~SocketInfo() = default;
 };
 
 class NetworkManager{
@@ -42,7 +46,7 @@ public:
     void notifySocketCreation( HSteamListenSocket createdSocket, HSteamNetPollGroup pollGroup );
     void notifySocketDestruction( HSteamListenSocket destroyedSocket );
 
-    Result<const std::vector<HSteamNetConnection>*> getClientList( HSteamListenSocket socket) const { if(m_SocketClientsMap.find(socket) != m_SocketClientsMap.end()){ return &(m_SocketClientsMap.at(socket)); }else { return MAKE_ERROR(HTTPErrors::eInvalidSocket, "No Such SOcket found"); } }
+    const std::vector<HSteamNetConnection>* getClientList( HSteamListenSocket socket) const; 
 
 public:
     static void OnConnectionStatusChangedCallback( SteamNetConnectionStatusChangedCallback_t *pInfo ){ NetworkManager::Get().callbackManager(pInfo); }
@@ -60,7 +64,7 @@ private:
     std::thread m_CallBackThread;
     std::atomic<bool> m_running { true };
 
-    std::unordered_map<HSteamListenSocket, std::vector<HSteamNetConnection>> m_SocketClientsMap;
+    std::unordered_map<HSteamListenSocket, SocketInfo> m_SocketClientsMap;
 };
 
 }

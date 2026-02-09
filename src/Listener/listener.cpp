@@ -186,13 +186,8 @@ namespace http{
     void Listener::DestroySocket(){
 
         auto connectionList = NetworkManager::Get().getClientList( m_Socket );
-        if( connectionList.isErr() ){
-            //Handeln IG oder einfach abbrechnen mal schaeun
 
-            return;
-        }
-
-        for( auto con : *(connectionList.value()) ){
+        for( auto con : *connectionList ){
             //was machen wir senden deafult response oder senden wir nichts oder denen die noch nichts gesendet haben keine ahnung wird hiuer gehandelt auf jeden
 
             m_pInterface->CloseConnection(con, 0, nullptr, false);

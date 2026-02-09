@@ -2,9 +2,10 @@
 #include "NetworkManager.h"
 #include "steam/steamclientpublic.h"
 #include "steam/steamnetworkingtypes.h"
+#include "../Server/HTTPinitialization.h"
+
 #include <algorithm>
 #include <cassert>
-
 #include <chrono>
 #include <vector>
 
@@ -26,6 +27,11 @@ void NetworkManager::kill(){
     if( m_CallBackThread.joinable())
         m_CallBackThread.join();
 }
+const std::vector<HSteamNetConnection>* NetworkManager::getClientList( HSteamListenSocket socket) const{    
+    assert(m_SocketClientsMap.find(socket) != m_SocketClientsMap.end());
+
+    return &(m_SocketClientsMap.at(socket).m_Clients); 
+}
 
 void NetworkManager::callbackManager( SteamNetConnectionStatusChangedCallback_t *pInfo ){
     switch ( pInfo->m_info.m_eState ) {
@@ -44,7 +50,7 @@ void NetworkManager::callbackManager( SteamNetConnectionStatusChangedCallback_t 
                 break;
             }
 
-            //Pollgroup setzten, denken dass das auch fehlschlagen kann
+            //TODO Pollgroup setzten, denken dass das auch fehlschlagen kann
 
 
             LOG_INFO("Connection Accepted!");
@@ -92,7 +98,7 @@ void NetworkManager::Disconnected( SteamNetConnectionStatusChangedCallback_t *pI
     assert( m_SocketClientsMap.find( pInfo->m_info.m_hListenSocket ) != m_SocketClientsMap.end() );
 
     //Verbindung entfernen
-    auto& connections = m_SocketClientsMap.at(pInfo->m_info.m_hListenSocket);
+    auto& connections = m_SocketClientsMap.at(pInfo->m_info.m_hListenSocket).m_Clients;
     auto con_it = std::find( connections.begin(), connections.end(), pInfo->m_hConn );
     assert(con_it != connections.end());
     connections.erase(con_it);
@@ -139,14 +145,7 @@ void NetworkManager::pollConnectionChanges(){
 void NetworkManager::notifySocketCreation( HSteamListenSocket createdSocket, HSteamNetPollGroup pollGroup ){
     std::lock_guard<std::mutex> lock(m_connection_lock);
 
-    //So weiter gucken keine Ahnung halt alles umbauen das das so gespeichert wird... aber auch keine Ahung wie das mit Konstruktoren aussieht
-    SocketInfo s { pollGroup, std::vector<HSteamNetConnection> (64) };
-    
-
-
-
-
-    m_SocketClientsMap.emplace(createdSocket, std::vector<HSteamNetConnection> (64));
+    m_SocketClientsMap.emplace(createdSocket, pollGroup);
 } 
 
 void NetworkManager::notifySocketDestruction( HSteamListenSocket destroyedSocket ){
