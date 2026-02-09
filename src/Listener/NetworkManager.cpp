@@ -1,10 +1,12 @@
 
 #include "NetworkManager.h"
+#include "steam/steamclientpublic.h"
 #include "steam/steamnetworkingtypes.h"
 #include <algorithm>
 #include <cassert>
 
 #include <chrono>
+#include <vector>
 
 namespace http{
 
@@ -33,9 +35,26 @@ void NetworkManager::callbackManager( SteamNetConnectionStatusChangedCallback_t 
             break;
         }
         case k_ESteamNetworkingConnectionState_Connecting:
+        {
+            LOG_VINFO("Trying to connect from", pInfo->m_info.m_szConnectionDescription);
+            
+            if( m_pInterface->AcceptConnection(pInfo->m_hConn) != k_EResultOK ){
+                m_pInterface->CloseConnection(pInfo->m_hConn, 0, nullptr, false);
+                LOG_VINFO("Couldnt Accept Connection from", pInfo->m_info.m_szConnectionDescription);
+                break;
+            }
+
+            //Pollgroup setzten, denken dass das auch fehlschlagen kann
+
+
+            LOG_INFO("Connection Accepted!");
             break;
+        }
         case k_ESteamNetworkingConnectionState_Connected:
+        {
+            //Connections zu gehrigen ort hinzuüfgen
             break;
+        }
         case k_ESteamNetworkingConnectionState_ProblemDetectedLocally:
         {
             Disconnected( pInfo );
@@ -117,8 +136,16 @@ void NetworkManager::pollConnectionChanges(){
     }
 }
 
-void NetworkManager::notifySocketCreation( HSteamListenSocket createdSocket ){
+void NetworkManager::notifySocketCreation( HSteamListenSocket createdSocket, HSteamNetPollGroup pollGroup ){
     std::lock_guard<std::mutex> lock(m_connection_lock);
+
+    //So weiter gucken keine Ahnung halt alles umbauen das das so gespeichert wird... aber auch keine Ahung wie das mit Konstruktoren aussieht
+    SocketInfo s { pollGroup, std::vector<HSteamNetConnection> (64) };
+    
+
+
+
+
     m_SocketClientsMap.emplace(createdSocket, std::vector<HSteamNetConnection> (64));
 } 
 

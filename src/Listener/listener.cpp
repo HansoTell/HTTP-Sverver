@@ -83,7 +83,8 @@ namespace http{
             std::strncpy(m_SocketName, socketName, 512);
         }
 
-        NetworkManager::Get().notifySocketCreation( m_Socket );
+        //Hier auch pollgroup übergeben
+        NetworkManager::Get().notifySocketCreation( m_Socket, m_pollGroup );
 
         return {};
     }

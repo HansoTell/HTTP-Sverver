@@ -19,6 +19,11 @@
 //die called dann networkmanager calback methode mit optionen struct oder int oder so
 namespace http{
 
+struct SocketInfo {
+    HSteamNetPollGroup pollGroup;
+    std::vector<HSteamNetConnection> m_SocketClientsMap;   
+};
+
 class NetworkManager{
 public:
     static NetworkManager& Get(){
@@ -34,7 +39,7 @@ public:
 
     void startCallbacksIfNeeded();
 
-    void notifySocketCreation( HSteamListenSocket createdSocket );
+    void notifySocketCreation( HSteamListenSocket createdSocket, HSteamNetPollGroup pollGroup );
     void notifySocketDestruction( HSteamListenSocket destroyedSocket );
 
     Result<const std::vector<HSteamNetConnection>*> getClientList( HSteamListenSocket socket) const { if(m_SocketClientsMap.find(socket) != m_SocketClientsMap.end()){ return &(m_SocketClientsMap.at(socket)); }else { return MAKE_ERROR(HTTPErrors::eInvalidSocket, "No Such SOcket found"); } }
