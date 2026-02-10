@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <cassert>
 #include <chrono>
+#include <mutex>
 #include <vector>
 
 namespace http{
@@ -42,23 +43,12 @@ void NetworkManager::callbackManager( SteamNetConnectionStatusChangedCallback_t 
         }
         case k_ESteamNetworkingConnectionState_Connecting:
         {
-            LOG_VINFO("Trying to connect from", pInfo->m_info.m_szConnectionDescription);
-            
-            if( m_pInterface->AcceptConnection(pInfo->m_hConn) != k_EResultOK ){
-                m_pInterface->CloseConnection(pInfo->m_hConn, 0, nullptr, false);
-                LOG_VINFO("Couldnt Accept Connection from", pInfo->m_info.m_szConnectionDescription);
-                break;
-            }
-
-            //TODO Pollgroup setzten, denken dass das auch fehlschlagen kann
-
-
-            LOG_INFO("Connection Accepted!");
+            Connecting( pInfo );
             break;
         }
         case k_ESteamNetworkingConnectionState_Connected:
         {
-            //Connections zu gehrigen ort hinzuüfgen
+            //No need to add additional things
             break;
         }
         case k_ESteamNetworkingConnectionState_ProblemDetectedLocally:
@@ -98,13 +88,44 @@ void NetworkManager::Disconnected( SteamNetConnectionStatusChangedCallback_t *pI
     assert( m_SocketClientsMap.find( pInfo->m_info.m_hListenSocket ) != m_SocketClientsMap.end() );
 
     //Verbindung entfernen
-    auto& connections = m_SocketClientsMap.at(pInfo->m_info.m_hListenSocket).m_Clients;
-    auto con_it = std::find( connections.begin(), connections.end(), pInfo->m_hConn );
-    assert(con_it != connections.end());
-    connections.erase(con_it);
+    {
+        std::lock_guard<std::mutex> _lock (m_connection_lock);
+        auto& connections = m_SocketClientsMap.at(pInfo->m_info.m_hListenSocket).m_Clients;
+        auto con_it = std::find( connections.begin(), connections.end(), pInfo->m_hConn );
+        assert(con_it != connections.end());
+        connections.erase(con_it);
+    }
 
     SteamNetworkingSockets()->CloseConnection( pInfo->m_hConn, 0, nullptr, false );
 
+    return;
+}
+
+void NetworkManager::Connecting( SteamNetConnectionStatusChangedCallback_t* pInfo ){
+    LOG_VINFO("Trying to connect from", pInfo->m_info.m_szConnectionDescription);
+    
+    if( m_pInterface->AcceptConnection(pInfo->m_hConn) != k_EResultOK ){
+        m_pInterface->CloseConnection(pInfo->m_hConn, 0, nullptr, false);
+        LOG_VINFO("Couldnt Accept Connection from", pInfo->m_info.m_szConnectionDescription);
+        return;
+    }
+    
+    {
+        std::lock_guard<std::mutex> _lock (m_connection_lock);
+        assert(m_SocketClientsMap.find(pInfo->m_info.m_hListenSocket) != m_SocketClientsMap.end());
+        auto& socketInfo = m_SocketClientsMap.at(pInfo->m_info.m_hListenSocket); 
+        auto pollGroup = socketInfo.m_PollGroup;
+
+        if( !m_pInterface->SetConnectionPollGroup(pInfo->m_hConn, pollGroup) ){
+            m_pInterface->CloseConnection(pInfo->m_hConn, 0, nullptr, false);
+            LOG_CRITICAL("Failed to assign PollGroup");
+            return;
+        }
+
+        socketInfo.m_Clients.emplace_back(pInfo->m_hConn);
+    }
+
+    LOG_INFO("Connection Accepted!");
     return;
 }
 

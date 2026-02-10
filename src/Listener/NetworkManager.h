@@ -55,6 +55,7 @@ public:
 private:
     void pollConnectionChanges();
 
+    void Connecting( SteamNetConnectionStatusChangedCallback_t *pInfo );
     void Disconnected( SteamNetConnectionStatusChangedCallback_t *pInfo );
 private:
     bool m_Connections_open = true;
