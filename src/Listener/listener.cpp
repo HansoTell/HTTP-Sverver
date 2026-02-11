@@ -4,6 +4,8 @@
 #include "NetworkManager.h"
 #include <chrono>
 #include <cstring>
+#include <optional>
+#include <utility>
 
 
 namespace http{
@@ -83,7 +85,6 @@ namespace http{
             std::strncpy(m_SocketName, socketName, 512);
         }
 
-        //Hier auch pollgroup übergeben
         NetworkManager::Get().notifySocketCreation( m_Socket, m_pollGroup );
 
         return {};
@@ -130,11 +131,9 @@ namespace http{
 
             if( message_Recived < 0 ){
 
-                std::lock_guard<std::mutex> _lock (m_Queues->m_ErrorQMutex);
-
                 auto err = MAKE_ERROR(HTTPErrors::ePollGroupHandlerInvalid, "PollGroup Handler invalid on trying to recive Messages");
                 LOG_VERROR(err);
-                m_Queues->m_ErrorQueue.push(err);
+                m_ErrorQueue.push(err);
 
                 //Thread pausieren bis server entscheidung getroffen hat wie weiter geht
                 m_listening = false;
@@ -145,10 +144,7 @@ namespace http{
 
             message.m_Message.assign((const char*) pIncMessage->m_pData, pIncMessage->m_cbSize);
 
-            {
-                std::lock_guard<std::mutex> _lock (m_Queues->m_NotParsedQMutex);
-                m_Queues->m_NotParsedMessages.push(std::move(message));
-            }
+            m_RecivedMessegas.push(std::move(message));
 
             pIncMessage->Release();            
 
@@ -161,21 +157,13 @@ namespace http{
         int messages_send_counter = 0;
         
         while( messages_send_counter < MAX_MESSAGES_PER_SESSION ){
-            Request OutMessage;
 
-            {
-                std::lock_guard<std::mutex> _lock (m_Queues->m_ResponsesQMutex);
+            std::optional<Request> OutMessage_opt = m_OutgoingMessages.try_pop();        
 
-                //hoffen das das aus while breacked
-                if( m_Queues->m_Responses.empty() )
-                    break;
+            if( !OutMessage_opt.has_value() )
+                break;
 
-                Request& OutMessage = m_Queues->m_Responses.front();
-
-                OutMessage = std::move(m_Queues->m_Responses.front());
-
-                m_Queues->m_Responses.pop();
-            }
+            Request& OutMessage = OutMessage_opt.value();
 
             const char* msg_c = OutMessage.m_Message.c_str();
             m_pInterface->SendMessageToConnection(OutMessage.m_Connection, &msg_c, (u_int32_t)strlen(msg_c), k_nSteamNetworkingSend_Reliable, nullptr);

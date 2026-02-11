@@ -3,7 +3,7 @@
 #include <steam/steamnetworkingsockets.h>
 
 #include "../Listener/listener.h"
-#include "Queues.h"
+#include "Request.h"
 #include "ThreadPool.h"
 
 
@@ -33,7 +33,6 @@ namespace http{
         std::thread m_ServerThread;
         std::atomic<bool> m_bQuit = false;
 
-        MessageQueues m_Queues;
         std::unique_ptr<Listener> m_Listener;
         std::unique_ptr<ThreadPool> m_CPUWorkers;
         std::unique_ptr<ThreadPool> m_APIWorkers;

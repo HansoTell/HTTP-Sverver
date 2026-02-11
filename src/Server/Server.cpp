@@ -1,4 +1,5 @@
 #include "Server.h"
+#include <optional>
 
 namespace http{
 
@@ -32,12 +33,14 @@ namespace http{
         #define REQUEST_LIMIT_PER_SESSION 100
         u_int16_t limitCounter = 0; 
 
-        std::lock_guard<std::mutex> _lock (m_Queues.m_NotParsedQMutex);
-        while(limitCounter < REQUEST_LIMIT_PER_SESSION && !m_Queues.m_NotParsedMessages.empty() )
+        while( limitCounter < REQUEST_LIMIT_PER_SESSION )
         {
+            std::optional<Request> msg = m_Listener->m_RecivedMessegas.try_pop();
+            if( !msg.has_value() )
+                break;
 
-            m_CPUWorkers->assignTask([this, req = std::move(m_Queues.m_NotParsedMessages.front() )]()  {
-                this->parseRequest(std::move(req));
+            m_CPUWorkers->assignTask([this, &msg]()  {
+                this->parseRequest(std::move( msg.value() ));
             });
             limitCounter++;
         }
