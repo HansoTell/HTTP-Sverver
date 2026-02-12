@@ -34,6 +34,10 @@ namespace http{
         std::atomic<bool> m_bQuit = false;
 
         std::unique_ptr<Listener> m_Listener;
+
+        //Auslastung so monitoren und dann netowrk manager oder listener sagen request abzulehen bei überfüllung
+        //länge von queues begrenzen 
+        //länge von queues auch loggen
         std::unique_ptr<ThreadPool> m_CPUWorkers;
         std::unique_ptr<ThreadPool> m_APIWorkers;
     };

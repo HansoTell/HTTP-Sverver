@@ -2,6 +2,7 @@
 
 #include "../Error/Errorcodes.h"
 #include "NetworkManager.h"
+#include "steam/isteamnetworkingsockets.h"
 #include <chrono>
 #include <cstring>
 #include <optional>
@@ -9,9 +10,14 @@
 
 
 namespace http{
+    //Konstruktor for Testing purpuses
+    Listener::Listener(ISteamNetworkingSockets* interface) : m_pInterface(interface), m_listening(false), m_running(true) {
+        assert(m_pInterface != nullptr);
+        
+        m_ListenThread = std::thread([this](){ this->listen(); }); 
+    }
 
-    Listener::Listener() : m_listening(false), m_running(true){ 
-        m_pInterface = NetworkManager::Get().m_pInterface;
+    Listener::Listener() : m_listening(false), m_running(true), m_pInterface(NetworkManager::Get().m_pInterface){ 
         assert(m_pInterface != nullptr);
         
         LOG_INFO("Started Listening Thread");

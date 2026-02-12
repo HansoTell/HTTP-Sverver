@@ -81,7 +81,8 @@ void NetworkManager::Disconnected( SteamNetConnectionStatusChangedCallback_t *pI
         }else {
             pDebugMsg = "Connection Closed by Peer";
         }
-        LOG_VCRITICAL(pDebugMsg, pInfo->m_info.m_szConnectionDescription, pInfo->m_info.m_eEndReason, pInfo->m_info.m_addrRemote, pInfo->m_info.m_szEndDebug );
+        //kann ip addresse net benutzenm weil net loggable gleiche mit debug discription :( mal gucken ginge sicher mit printf oder so
+        LOG_VCRITICAL(pDebugMsg, pInfo->m_info.m_szConnectionDescription, pInfo->m_info.m_eEndReason );
     }
 
     

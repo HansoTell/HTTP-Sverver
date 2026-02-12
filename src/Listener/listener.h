@@ -8,13 +8,12 @@
 #include "../Server/HTTPinitialization.h"
 #include "../Server/Request.h"
 #include "../Datastrucutres/ThreadSaveQueue.h"
+#include "steam/isteamnetworkingsockets.h"
 
 namespace http{
 
 class Listener {
 public:
-    //länge von queues begrenzen 
-    //länge von queues auch loggen
     ThreadSaveQueue<Request> m_RecivedMessegas;
     ThreadSaveQueue<Request> m_OutgoingMessages;
     //kann invalid poll group error on listener enthalten
@@ -24,6 +23,7 @@ public:
     void stopListening();
 public:
     Listener();
+    Listener(ISteamNetworkingSockets* interface);
     Listener(const Listener& other) = delete;
     Listener(Listener&& other) = delete;
     ~Listener();

@@ -5,6 +5,7 @@ add_executable(HTTP_Server_Tests ${TEST_SOURCES})
 target_link_libraries(HTTP_Server_Tests
     PRIVATE
         gtest
+        gmock
         gtest_main
         GameNetworkingSockets
 )
