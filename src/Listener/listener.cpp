@@ -1,8 +1,8 @@
 #include "http/listener.h"
 
-#include <Error/Errorcodes.h>
-#include "NetworkManager.h"
+#include "http/NetworkManager.h"
 #include "steam/isteamnetworkingsockets.h"
+
 #include <chrono>
 #include <cstring>
 #include <optional>
@@ -116,7 +116,7 @@ namespace http{
 
                 std::this_thread::sleep_for(std::chrono::milliseconds(10));
             }
-            LOG_DEBUG("Left Listening whiole Loop");
+            LOG_DEBUG("Left Listening while Loop");
             DestroySocket();
         }
     }

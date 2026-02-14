@@ -1,5 +1,6 @@
+#include "http/NetworkManager.h"
 
-#include "NetworkManager.h"
+#include "Logger/Logger.h"
 #include "steam/steamclientpublic.h"
 #include "steam/steamnetworkingtypes.h"
 #include "http/HTTPinitialization.h"
@@ -7,6 +8,7 @@
 #include <algorithm>
 #include <cassert>
 #include <chrono>
+#include <memory>
 #include <mutex>
 #include <vector>
 
@@ -18,6 +20,8 @@ void NetworkManager::init(){
 
     m_pInterface = SteamNetworkingSockets(); 
 
+    m_ListenerHandlerIndex = 1;
+
     m_CallBackThread = std::thread ( [this](){ this->pollConnectionChanges(); } );
 }
 
@@ -28,6 +32,36 @@ void NetworkManager::kill(){
     if( m_CallBackThread.joinable())
         m_CallBackThread.join();
 }
+
+HListener NetworkManager::createListener() {
+
+    assert(m_ListenerHandlerIndex < MAXLOGSIZE);
+    assert(m_Listeners.find(m_ListenerHandlerIndex) == m_Listeners.end());
+
+    //ergibt das sinn weil halt emplace und so oder muss ich sogar moven keine ahnung
+    m_Listeners.emplace(m_ListenerHandlerIndex, std::make_unique<Listener>());
+    m_ListenerHandlerIndex++;
+
+    if( m_ListenerHandlerIndex == MAXLOGSIZE ) {
+        //Überlauf handeln halt
+    }
+
+    return 1;
+}
+
+void NetworkManager::DestroyListener( HListener listener ){
+    //error returnen wenn invalid listener
+    
+
+}
+
+
+
+ void NetworkManager::stopListening( HListener listener ){
+    //unterschiedung stoppen und pasuen rufen wir destroy auf oder nicht ich denke sollten da unterschieuiden
+}
+
+
 const std::vector<HSteamNetConnection>* NetworkManager::getClientList( HSteamListenSocket socket) const{    
     assert(m_SocketClientsMap.find(socket) != m_SocketClientsMap.end());
 
