@@ -1,8 +1,8 @@
 #include <iostream>
 #include <stdint.h>
 
-#include "Server/Server.h"
-#include "Server/HTTPinitialization.h"
+#include "http/HTTPinitialization.h"
+#include <http/Server.h>
 
 int main(){
 

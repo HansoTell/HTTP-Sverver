@@ -1,64 +1,110 @@
 cmake_minimum_required(VERSION 3.28.3)
 
+project(HTTP_Server)
+
 set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-set(PRODUCTION_BUILD OFF CACHE BOOL "Make prod Build" FORCE)
-
-set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Release>:Release>")
-set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
-
-
-project(HTTP-Server)
 include(CTest)
 enable_testing()
 
+# ============================================
+# Options
+# ============================================
 
+set(PRODUCTION_BUILD OFF CACHE BOOL "Make prod Build" FORCE)
+
+# ============================================
+# Third Party Libraries
+# ============================================
+
+# Disable gtest install
 set(INSTALL_GTEST OFF CACHE BOOL "" FORCE)
 set(gtest_force_shared_crt OFF CACHE BOOL "" FORCE)
 
-
 add_subdirectory(thirdparty/googletest)
 add_subdirectory(thirdparty/GameNetworkingSockets)
-add_subdirectory(tests)
 
-file(GLOB_RECURSE MY_SOURCES CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp")
+# ============================================
+# Collect Source Files (except main.cpp)
+# ============================================
 
-add_executable("${CMAKE_PROJECT_NAME}")
+file(GLOB_RECURSE MY_SOURCES
+    CONFIGURE_DEPENDS
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp"
+)
 
-set_property(TARGET "${CMAKE_PROJECT_NAME}" PROPERTY CXX_STANDARD 17)
+# Remove main.cpp from library sources
+list(FILTER MY_SOURCES EXCLUDE REGEX ".*main\\.cpp$")
+
+# ============================================
+# Create Library (Core Code)
+# ============================================
+
+add_library(HTTP_Server_Lib ${MY_SOURCES})
+
+target_include_directories(HTTP_Server_Lib
+    PUBLIC
+        ${CMAKE_CURRENT_SOURCE_DIR}/include
+)
+
+target_link_libraries(HTTP_Server_Lib
+    PUBLIC
+        GameNetworkingSockets
+)
+
+# ============================================
+# Create Executable (main only)
+# ============================================
+
+add_executable(${PROJECT_NAME}
+    src/main.cpp
+)
+
+target_link_libraries(${PROJECT_NAME}
+    PRIVATE
+        HTTP_Server_Lib
+)
+
+# ============================================
+# Compile Definitions
+# ============================================
 
 if(PRODUCTION_BUILD)
-	target_compile_definitions("${CMAKE_PROJECT_NAME}" PUBLIC RESOURCES_PATH="./resources/") 
 
-	target_compile_definitions("${CMAKE_PROJECT_NAME}" PUBLIC PRODUCTION_BUILD=1) 
-	target_compile_definitions("${CMAKE_PROJECT_NAME}" PUBLIC DEVELOPLEMT_BUILD=0) 
+    target_compile_definitions(${PROJECT_NAME} PUBLIC
+        RESOURCES_PATH="./resources/"
+        PRODUCTION_BUILD=1
+        DEVELOPLEMT_BUILD=0
+    )
 
 else()
-	target_compile_definitions("${CMAKE_PROJECT_NAME}" PUBLIC RESOURCES_PATH="${CMAKE_CURRENT_SOURCE_DIR}/resources/")
-	target_compile_definitions("${CMAKE_PROJECT_NAME}" PUBLIC PRODUCTION_BUILD=0) 
-	target_compile_definitions("${CMAKE_PROJECT_NAME}" PUBLIC DEVELOPLEMT_BUILD=1) 
+
+    target_compile_definitions(${PROJECT_NAME} PUBLIC
+        RESOURCES_PATH="${CMAKE_CURRENT_SOURCE_DIR}/resources/"
+        PRODUCTION_BUILD=0
+        DEVELOPLEMT_BUILD=1
+    )
 
 endif()
 
+# ============================================
+# MSVC Specific
+# ============================================
 
-target_sources("${CMAKE_PROJECT_NAME}" PRIVATE ${MY_SOURCES})
-
-if(MSVC) 
-
-	target_compile_definitions("${CMAKE_PROJECT_NAME}" PUBLIC _CRT_SECURE_NO_WARNINGS)
-
-	set_target_properties("${CMAKE_PROJECT_NAME}" PROPERTIES LINK_FLAGS "/SUBSYSTEM:WINDOWS /ENTRY:mainCRTStartup") #no console
-	
-	#set_property(TARGET "${CMAKE_PROJECT_NAME}" PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreadedDebug<$<CONFIG:Debug>:Debug>")
-	#set_property(TARGET "${CMAKE_PROJECT_NAME}" PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Release>:Release>")
-
+if(MSVC)
+    target_compile_definitions(${PROJECT_NAME} PUBLIC _CRT_SECURE_NO_WARNINGS)
+    set_target_properties(${PROJECT_NAME} PROPERTIES
+        LINK_FLAGS "/SUBSYSTEM:WINDOWS /ENTRY:mainCRTStartup"
+    )
 endif()
 
-if (WIN32)
-	target_compile_options("${CMAKE_PROJECT_NAME}" PRIVATE /UUNICODE /U_UNICODE)
+if(WIN32)
+    target_compile_options(${PROJECT_NAME} PRIVATE /UUNICODE /U_UNICODE)
 endif()
 
+# ============================================
+# Tests
+# ============================================
 
-target_include_directories("${CMAKE_PROJECT_NAME}" PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include/")
-
-target_link_libraries("${CMAKE_PROJECT_NAME}" PRIVATE GameNetworkingSockets)
+add_subdirectory(tests)

@@ -4,9 +4,9 @@
 #include <steam/steamnetworkingsockets.h>
 #include <memory>
 
-#include "../Error/Error.h"
-#include "../Error/Errorcodes.h"
-#include "../Log/Logger.h"
+#include "Error/Errorcodes.h"
+#include "Error/Error.h"
+#include "Logger/Logger.h"
 
 #ifndef NDEBUG
 #define LOGLEVEL Log::LogLevel::DEBUG

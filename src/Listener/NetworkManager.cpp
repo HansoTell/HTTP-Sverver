@@ -2,7 +2,7 @@
 #include "NetworkManager.h"
 #include "steam/steamclientpublic.h"
 #include "steam/steamnetworkingtypes.h"
-#include "../Server/HTTPinitialization.h"
+#include "http/HTTPinitialization.h"
 
 #include <algorithm>
 #include <cassert>

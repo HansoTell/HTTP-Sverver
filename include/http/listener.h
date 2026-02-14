@@ -5,9 +5,9 @@
 #include <thread>
 #include <cassert>
 
-#include "../Server/HTTPinitialization.h"
-#include "../Server/Request.h"
-#include "../Datastrucutres/ThreadSaveQueue.h"
+#include "http/HTTPinitialization.h"
+#include "http/Request.h"
+#include "Datastrucutres/ThreadSaveQueue.h"
 #include "steam/isteamnetworkingsockets.h"
 
 namespace http{
