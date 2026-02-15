@@ -1,5 +1,7 @@
 #include "http/NetworkManager.h"
 
+#include "Datastrucutres/ThreadSaveQueue.h"
+#include "Error/Errorcodes.h"
 #include "Logger/Logger.h"
 #include "steam/steamclientpublic.h"
 #include "steam/steamnetworkingtypes.h"
@@ -10,6 +12,7 @@
 #include <chrono>
 #include <memory>
 #include <mutex>
+#include <sys/types.h>
 #include <vector>
 
 namespace http{
@@ -38,27 +41,76 @@ HListener NetworkManager::createListener() {
     assert(m_ListenerHandlerIndex < MAXLOGSIZE);
     assert(m_Listeners.find(m_ListenerHandlerIndex) == m_Listeners.end());
 
-    //ergibt das sinn weil halt emplace und so oder muss ich sogar moven keine ahnung
-    m_Listeners.emplace(m_ListenerHandlerIndex, std::make_unique<Listener>());
+    HListener handler = m_ListenerHandlerIndex;
+    m_Listeners.emplace(handler, std::make_unique<Listener>());
     m_ListenerHandlerIndex++;
 
-    if( m_ListenerHandlerIndex == MAXLOGSIZE ) {
-        //Überlauf handeln halt
-    }
-
-    return 1;
+    return handler;
 }
 
-void NetworkManager::DestroyListener( HListener listener ){
-    //error returnen wenn invalid listener
+//can return invalid listener
+Result<void> NetworkManager::DestroyListener( HListener listener ){
+
+    if(auto err = isValidListenerHandler(listener); err.isErr())
+        return err;
+
+    m_Listeners.at(listener).reset(nullptr);
+    m_Listeners.erase(listener);
+
+    return {};
+}
+
+Result<void> NetworkManager::startListening( HListener listener, u_int16_t port){
+
+    if(auto err = isValidListenerHandler(listener); err.isErr())
+        return err;
+
+    //TODO: Wie machen mit namen des listener hier speichern oder gar nicht speichern oder was 
+    m_Listeners.at(listener)->startListening( port, "");
+
+
+    std::lock_guard<std::mutex> _lock (m_connection_lock);
+    m_Connections_open=true;
+    m_callbackCV.notify_one();
+                                             
+    return {};
+}
+
+//can return invalid Listener
+Result<void> NetworkManager::stopListening( HListener listener ){
+
+    if(auto err = isValidListenerHandler(listener); err.isErr())
+        return err;
+
+    //Frage halt müssen wir socket raus nehmen aus interner liste... eig ja schon implioziert das ja schon
+    //und was ist mit diesem einen error den wir ablegen? was wird da eig gecalled
+    //finden wir es so gut, dass bei einem einfachem error direkt das socket zerstört wird??
+    //notifySocketDestruction problem dass das immer wenn auch implizit das aufgerufen wird--> sollten da eig allgemein eine bessere lösung finden so zu viel implizit
+    //
+    m_Listeners.at(listener)->stopListening();
+
+
+    return {};
+}
+
+//Auch nicht wirklich schön mit Template muster...
+template<typename T>
+ThreadSaveQueue<T>* NetworkManager::getQueue( HListener listener, QueueType queueType ){
     
+    //machen wir ernst result???
+    if(auto err = isValidListenerHandler(listener); err.isErr())
+        return nullptr;
 
-}
-
-
-
- void NetworkManager::stopListening( HListener listener ){
-    //unterschiedung stoppen und pasuen rufen wir destroy auf oder nicht ich denke sollten da unterschieuiden
+    auto& pListener = m_Listeners.at(listener); 
+    switch ( queueType ) 
+    {
+        case ERROR:
+            return &(pListener->m_ErrorQueue);
+        case RECEIVED:
+            return &(pListener->m_RecivedMessegas);
+        case OUTGOING:
+            return &(pListener->m_OutgoingMessages);
+    }
 }
 
 
@@ -197,6 +249,17 @@ void NetworkManager::pollConnectionChanges(){
         lock.lock();
     }
 }
+
+Result<void> NetworkManager::isValidListenerHandler( HListener listenerHandler) const {
+    if( m_Listeners.find(listenerHandler) == m_Listeners.end() ){
+        auto err = MAKE_ERROR(HTTPErrors::eInvalidListener, "Invalid listener number");
+        LOG_VERROR(err);
+        return err;
+    }
+    
+    return {};
+}
+
 
 void NetworkManager::notifySocketCreation( HSteamListenSocket createdSocket, HSteamNetPollGroup pollGroup ){
     std::lock_guard<std::mutex> lock(m_connection_lock);

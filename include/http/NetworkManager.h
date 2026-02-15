@@ -59,20 +59,24 @@ public:
     void kill();
     
     HListener createListener();
-    void DestroyListener( HListener listener );
+    Result<void> DestroyListener( HListener listener );
 
     Result<void> startListening( HListener listener, u_int16_t port);
-    void stopListening( HListener listener );
-    ThreadSaveQueue<Request>* getQueue( HListener listener, QueueType queuetype);
+    Result<void> stopListening( HListener listener );
+    template<typename T>
+    ThreadSaveQueue<T>* getQueue( HListener listener, QueueType queuetype);
 
 
     void callbackManager( SteamNetConnectionStatusChangedCallback_t *pInfo );
 
+    //Entfernen
     void startCallbacksIfNeeded();
 
+    //auch entfernen
     void notifySocketCreation( HSteamListenSocket createdSocket, HSteamNetPollGroup pollGroup );
     void notifySocketDestruction( HSteamListenSocket destroyedSocket );
 
+    //auch entfernen
     const std::vector<HSteamNetConnection>* getClientList( HSteamListenSocket socket) const; 
 
 public:
@@ -84,6 +88,8 @@ private:
 
     void Connecting( SteamNetConnectionStatusChangedCallback_t *pInfo );
     void Disconnected( SteamNetConnectionStatusChangedCallback_t *pInfo );
+
+    Result<void> isValidListenerHandler( HListener listenerHandel ) const;
 private:
     bool m_Connections_open = true;
     std::mutex m_connection_lock;
