@@ -33,9 +33,9 @@ namespace http{
         LOG_INFO("Stopped Listening Thread");
     }
 
-    Result<void> Listener::startListening( u_int16_t port, const char* socketName ){
+    Result<void> Listener::startListening( u_int16_t port ){
         std::lock_guard<std::mutex> _lock (m_ListenMutex);
-        if( auto result = initSocket( port, socketName ); result.isErr() )
+        if( auto result = initSocket( port ); result.isErr() )
             return result;
         
         m_listening = true;
@@ -53,7 +53,7 @@ namespace http{
         LOG_INFO("Stopped Listening");
     }
 
-    Result<void> Listener::initSocket( u_int16_t port, const char* socketName ){
+    Result<void> Listener::initSocket( u_int16_t port ){
 
         SteamNetworkingIPAddr address;
         address.Clear();
@@ -74,21 +74,12 @@ namespace http{
             return error; 
         }
 
-        NetworkManager::Get().startCallbacksIfNeeded();
-
         m_pollGroup = m_pInterface->CreatePollGroup();
 
         if( m_pollGroup == k_HSteamNetPollGroup_Invalid ){
             auto error = MAKE_ERROR(HTTPErrors::ePollingGroupInitializationFailed, "Failed to initialize Polling Group");
             LOG_VERROR(error, "On Port" , port);
             return error; 
-        }
-
-        //Socket namen Setzten
-        if( !socketName ){
-            std::strncpy(m_SocketName, "Deafult Socket Name", 512);
-        }else {
-            std::strncpy(m_SocketName, socketName, 512);
         }
 
         NetworkManager::Get().notifySocketCreation( m_Socket, m_pollGroup );
@@ -194,6 +185,6 @@ namespace http{
         m_pInterface->DestroyPollGroup( m_pollGroup );
         m_pollGroup = k_HSteamNetPollGroup_Invalid;
 
-        LOG_VINFO("Destroyed Socket:", m_SocketName);
+        LOG_VINFO("Destroyed Socket");
     }
 }

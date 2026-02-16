@@ -4,6 +4,7 @@
 #include <steam/steamnetworkingsockets.h>
 #include <steam/isteamnetworkingutils.h>
 #include <sys/types.h>
+#include <utility>
 #include <vector>
 #include <thread>
 #include <mutex>
@@ -29,6 +30,7 @@
 //vielleicht umbauen dass callbacks und so in listener und destroy socket ev umbauen es könnte einfacher sein so
 //Zudem haben keine start lsiening methode nur eine die auch socket erstellt...
 //alle aufurfe aus listener entfernen und equally ersetzten
+//sollten auch nicht zurfrieden sein mit den map, also weil blockiert alles scalet schlecht
 namespace http{
 
 #define HListener u_int64_t
@@ -48,6 +50,18 @@ struct SocketInfo {
     ~SocketInfo() = default;
 };
 
+struct ListenerInfo {
+    std::unique_ptr<Listener> m_Listener = nullptr;
+    char ListenerName[512] = "";
+    HSteamListenSocket m_Socket = k_HSteamListenSocket_Invalid;
+    HSteamNetPollGroup m_PollGroup = k_HSteamNetPollGroup_Invalid;
+    std::vector<HSteamNetConnection> m_Clients = std::vector<HSteamNetConnection>(64);
+
+    ListenerInfo( std::unique_ptr<Listener> listener) 
+        : m_Listener(std::move(listener)) {} 
+};
+
+
 class NetworkManager{
 public:
     static NetworkManager& Get(){
@@ -58,7 +72,7 @@ public:
     void init();
     void kill();
     
-    HListener createListener();
+    HListener createListener( const char* ListenerName );
     Result<void> DestroyListener( HListener listener );
 
     Result<void> startListening( HListener listener, u_int16_t port);
@@ -68,9 +82,6 @@ public:
 
 
     void callbackManager( SteamNetConnectionStatusChangedCallback_t *pInfo );
-
-    //Entfernen
-    void startCallbacksIfNeeded();
 
     //auch entfernen
     void notifySocketCreation( HSteamListenSocket createdSocket, HSteamNetPollGroup pollGroup );
@@ -100,7 +111,8 @@ private:
 
     std::unordered_map<HSteamListenSocket, SocketInfo> m_SocketClientsMap;
 
-    std::unordered_map<HListener, std::unique_ptr<Listener>> m_Listeners;
+    std::mutex m_ListenersMutex;
+    std::unordered_map<HListener, ListenerInfo> m_Listeners;
     u_int64_t m_ListenerHandlerIndex = HListener_Invalid;
 };
 

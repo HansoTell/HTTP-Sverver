@@ -10,6 +10,7 @@
 #include <algorithm>
 #include <cassert>
 #include <chrono>
+#include <cstring>
 #include <memory>
 #include <mutex>
 #include <sys/types.h>
@@ -36,13 +37,17 @@ void NetworkManager::kill(){
         m_CallBackThread.join();
 }
 
-HListener NetworkManager::createListener() {
+HListener NetworkManager::createListener( const char* ListenerName ) {
 
     assert(m_ListenerHandlerIndex < MAXLOGSIZE);
     assert(m_Listeners.find(m_ListenerHandlerIndex) == m_Listeners.end());
 
     HListener handler = m_ListenerHandlerIndex;
-    m_Listeners.emplace(handler, std::make_unique<Listener>());
+
+    m_Listeners.emplace(handler, ListenerInfo(std::make_unique<Listener>()) );
+    if( ListenerName )
+        strncpy(m_Listeners.at(handler).ListenerName, ListenerName, 512);
+
     m_ListenerHandlerIndex++;
 
     return handler;
@@ -54,20 +59,31 @@ Result<void> NetworkManager::DestroyListener( HListener listener ){
     if(auto err = isValidListenerHandler(listener); err.isErr())
         return err;
 
-    m_Listeners.at(listener).reset(nullptr);
+    m_Listeners.at(listener).m_Listener.reset(nullptr);
     m_Listeners.erase(listener);
 
     return {};
 }
 
+//kann Socket initliazition failed returnrn
+//kann invald listener returnrn
 Result<void> NetworkManager::startListening( HListener listener, u_int16_t port){
 
     if(auto err = isValidListenerHandler(listener); err.isErr())
         return err;
 
-    //TODO: Wie machen mit namen des listener hier speichern oder gar nicht speichern oder was 
-    m_Listeners.at(listener)->startListening( port, "");
+    
+    //muss socket und pollgroup return
+    {
+        std::lock_guard<std::mutex> _lock(m_ListenersMutex);
+        ListenerInfo& info = m_Listeners.at(listener);
 
+        if(auto err = info.m_Listener->startListening( port ); err.isErr() )
+            return err;
+
+        info.m_Socket = 1;
+        info.m_PollGroup = 2;
+    }
 
     std::lock_guard<std::mutex> _lock (m_connection_lock);
     m_Connections_open=true;
@@ -87,13 +103,12 @@ Result<void> NetworkManager::stopListening( HListener listener ){
     //finden wir es so gut, dass bei einem einfachem error direkt das socket zerstört wird??
     //notifySocketDestruction problem dass das immer wenn auch implizit das aufgerufen wird--> sollten da eig allgemein eine bessere lösung finden so zu viel implizit
     //
-    m_Listeners.at(listener)->stopListening();
+    m_Listeners.at(listener).m_Listener->stopListening();
 
 
     return {};
 }
 
-//Auch nicht wirklich schön mit Template muster...
 template<typename T>
 ThreadSaveQueue<T>* NetworkManager::getQueue( HListener listener, QueueType queueType ){
     
@@ -105,11 +120,11 @@ ThreadSaveQueue<T>* NetworkManager::getQueue( HListener listener, QueueType queu
     switch ( queueType ) 
     {
         case ERROR:
-            return &(pListener->m_ErrorQueue);
+            return &(pListener.m_Listener->m_ErrorQueue);
         case RECEIVED:
-            return &(pListener->m_RecivedMessegas);
+            return &(pListener.m_Listener->m_RecivedMessegas);
         case OUTGOING:
-            return &(pListener->m_OutgoingMessages);
+            return &(pListener.m_Listener->m_OutgoingMessages);
     }
 }
 
@@ -214,12 +229,6 @@ void NetworkManager::Connecting( SteamNetConnectionStatusChangedCallback_t* pInf
 
     LOG_INFO("Connection Accepted!");
     return;
-}
-
-void NetworkManager::startCallbacksIfNeeded() {
-    std::lock_guard<std::mutex> lock (m_callbackMutex);
-    m_Connections_open=true;
-    m_callbackCV.notify_one();
 }
 
 void NetworkManager::pollConnectionChanges(){

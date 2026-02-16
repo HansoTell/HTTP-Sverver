@@ -19,7 +19,7 @@ public:
     //kann invalid poll group error on listener enthalten
     ThreadSaveQueue<Error::ErrorValue<HTTPErrors>> m_ErrorQueue;
 public:
-    Result<void> startListening( u_int16_t port, const char* socketName );
+    Result<void> startListening( u_int16_t port );
     void stopListening();
 public:
     Listener();
@@ -30,7 +30,7 @@ public:
 private:
     void listen();
 
-    Result<void> initSocket( u_int16_t port, const char* socketName );
+    Result<void> initSocket( u_int16_t port );
     void DestroySocket();
 
     void pollIncMessages();
@@ -38,7 +38,6 @@ private:
 private:
     ISteamNetworkingSockets* m_pInterface;
     HSteamListenSocket m_Socket;
-    char m_SocketName[512];
     HSteamNetPollGroup m_pollGroup;
 
     std::thread m_ListenThread;
