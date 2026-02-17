@@ -1,5 +1,6 @@
 #pragma once
 
+#include <functional>
 #include <memory>
 #include <steam/steamnetworkingsockets.h>
 #include <steam/isteamnetworkingutils.h>
@@ -91,6 +92,7 @@ public:
     ISteamNetworkingSockets* m_pInterface = nullptr;
 private:
     void pollConnectionChanges();
+    void pollFunctionCalls();
 
     void Connecting( SteamNetConnectionStatusChangedCallback_t *pInfo );
     void Disconnected( SteamNetConnectionStatusChangedCallback_t *pInfo );
@@ -106,7 +108,8 @@ private:
 
     std::unordered_map<HSteamListenSocket, SocketInfo> m_SocketClientsMap;
 
-    std::mutex m_ListenersMutex;
+    //Wie functions wrappen
+    ThreadSaveQueue<std::string> m_FunctionCalls;
     std::unordered_map<HListener, ListenerInfo> m_Listeners;
     u_int64_t m_ListenerHandlerIndex = HListener_Invalid;
 };

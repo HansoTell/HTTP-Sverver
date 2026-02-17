@@ -71,19 +71,17 @@ Result<void> NetworkManager::startListening( HListener listener, u_int16_t port)
 
     if(auto err = isValidListenerHandler(listener); err.isErr())
         return err;
-
     
     //muss socket und pollgroup return
-    {
-        std::lock_guard<std::mutex> _lock(m_ListenersMutex);
-        ListenerInfo& info = m_Listeners.at(listener);
+    
+    ListenerInfo& info = m_Listeners.at(listener);
 
-        if(auto err = info.m_Listener->startListening( port ); err.isErr() )
-            return err;
+    if(auto err = info.m_Listener->startListening( port ); err.isErr() )
+        return err;
 
-        info.m_Socket = 1;
-        info.m_PollGroup = 2;
-    }
+    info.m_Socket = 1;
+    info.m_PollGroup = 2;
+    
 
     std::lock_guard<std::mutex> _lock (m_connection_lock);
     m_Connections_open=true;
@@ -257,6 +255,11 @@ void NetworkManager::pollConnectionChanges(){
 
         lock.lock();
     }
+}
+
+void NetworkManager::pollFunctionCalls(){
+    //wie integriert man?
+
 }
 
 Result<void> NetworkManager::isValidListenerHandler( HListener listenerHandler) const {
