@@ -44,7 +44,7 @@ HListener NetworkManager::createListener( const char* ListenerName ) {
 
     HListener handler = m_ListenerHandlerIndex;
 
-    m_Listeners.emplace(handler, ListenerInfo(std::make_unique<Listener>()) );
+    m_Listeners.emplace(handler, ListenerInfo(std::make_unique<Listener>(m_pInterface)) );
     if( ListenerName )
         strncpy(m_Listeners.at(handler).ListenerName, ListenerName, 512);
 

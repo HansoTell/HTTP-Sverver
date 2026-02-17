@@ -18,19 +18,13 @@
 #include "steam/steamnetworkingtypes.h"
 
 
-//Eine sache die ich dneke also soweit ich weiß laufen callbacks auch für einzelne sockets.
-//Sollte man für jeden socket möglichkeit haben optionen zu geben? Dann individueller Callback oder so wäre idee. Dann würde es satic method im listener geben
-//die called dann networkmanager calback methode mit optionen struct oder int oder so
-//Auf jeden fall überlegen individuell die sich selbst verwalten zu alssen
-//
-//Was fehlt neues start callback mechanismus
-//handler mechanismus
 //Listener methoden auf hier mappen das von hier aufgerufen werden können
 //im server so bauen das es nur über ihn hier funktioniert
 //vielleicht umbauen dass callbacks und so in listener und destroy socket ev umbauen es könnte einfacher sein so
-//Zudem haben keine start lsiening methode nur eine die auch socket erstellt...
 //alle aufurfe aus listener entfernen und equally ersetzten
 //sollten auch nicht zurfrieden sein mit den map, also weil blockiert alles scalet schlecht
+//keine ahnung wie man die map thread sicher macht also man kann einach nie entfernen das wäre möglich --> würde fehler
+//bringen wie wenn man halt eine alte listener nummer imemr noch funktioniert
 namespace http{
 
 #define HListener u_int64_t
@@ -56,6 +50,7 @@ struct ListenerInfo {
     HSteamListenSocket m_Socket = k_HSteamListenSocket_Invalid;
     HSteamNetPollGroup m_PollGroup = k_HSteamNetPollGroup_Invalid;
     std::vector<HSteamNetConnection> m_Clients = std::vector<HSteamNetConnection>(64);
+    std::mutex test();
 
     ListenerInfo( std::unique_ptr<Listener> listener) 
         : m_Listener(std::move(listener)) {} 
