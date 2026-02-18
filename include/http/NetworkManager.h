@@ -79,6 +79,7 @@ public:
     void pollFunctionCalls();
     
     void callbackManager( SteamNetConnectionStatusChangedCallback_t *pInfo );
+public:
 
 public:
     NetworkManagerCore( ISteamNetworkingSockets* interface );
@@ -87,6 +88,9 @@ public:
     ~NetworkManagerCore();
 private:
     Result<void> isValidListenerHandler( HListener listenerHandel ) const;
+
+    void Connecting( SteamNetConnectionStatusChangedCallback_t *pInfo );
+    void Disconnected( SteamNetConnectionStatusChangedCallback_t *pInfo );
 private:
     std::unordered_map<HListener, ListenerInfo> m_Listeners;
     u_int64_t m_ListenerHandlerIndex = HListener_Invalid;
@@ -111,10 +115,6 @@ public:
     template<typename T>
     ThreadSaveQueue<T>* getQueue( HListener listener, QueueType queuetype);
 
-    //Hier stehen geblieben1
-    //muss glaube auch in core rein
-    void callbackManager( SteamNetConnectionStatusChangedCallback_t *pInfo );
-
     //auch entfernen
     void notifySocketCreation( HSteamListenSocket createdSocket, HSteamNetPollGroup pollGroup );
     void notifySocketDestruction( HSteamListenSocket destroyedSocket );
@@ -122,9 +122,6 @@ public:
     //auch entfernen
     const std::vector<HSteamNetConnection>* getClientList( HSteamListenSocket socket) const; 
 
-public:
-    //Kann das entfernt werden und durch eifnache Lambda ersetzt werden??
-    static void OnConnectionStatusChangedCallback( SteamNetConnectionStatusChangedCallback_t *pInfo ){ NetworkManager::Get().callbackManager(pInfo); }
 public:
     ISteamNetworkingSockets* m_pInterface = nullptr;
 private:
@@ -136,12 +133,6 @@ private:
     void pollConnectionChanges();
     void pollFunctionCalls();
 
-    //bleibt hier
-    void Connecting( SteamNetConnectionStatusChangedCallback_t *pInfo );
-    void Disconnected( SteamNetConnectionStatusChangedCallback_t *pInfo );
-
-    //kommt core
-    Result<void> isValidListenerHandler( HListener listenerHandel ) const;
 private:
     //bleibt heir
     bool m_Connections_open = true;

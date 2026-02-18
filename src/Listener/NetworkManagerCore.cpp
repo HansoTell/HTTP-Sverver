@@ -1,6 +1,7 @@
 #include "Datastrucutres/ThreadSaveQueue.h"
 #include "http/HTTPinitialization.h"
 #include "http/NetworkManager.h"
+#include "steam/isteamnetworkingsockets.h"
 
 namespace http{
 
@@ -94,5 +95,112 @@ ThreadSaveQueue<T>* NetworkManagerCore::getQueue( HListener listener, QueueType 
     }
 }
 
+void NetworkManagerCore::callbackManager( SteamNetConnectionStatusChangedCallback_t* pInfo ){
+
+    switch ( pInfo->m_info.m_eState ) {
+        case  k_ESteamNetworkingConnectionState_None:
+        {
+            LOG_CRITICAL("Connection Staus Changed NONE");
+            break;
+        }
+        case k_ESteamNetworkingConnectionState_Connecting:
+        {
+            Connecting( pInfo );
+            break;
+        }
+        case k_ESteamNetworkingConnectionState_Connected:
+        {
+            //No need to add additional things
+            break;
+        }
+        case k_ESteamNetworkingConnectionState_ProblemDetectedLocally:
+        {
+            Disconnected( pInfo );
+            break;
+        }
+        case k_ESteamNetworkingConnectionState_ClosedByPeer:
+        {
+            Disconnected( pInfo );
+            break;
+        }
+        default:
+        {
+            LOG_CRITICAL("Undefined Status changed Callback.")  ;
+            break;
+        }
+    }
+}
+
+//Muss noch richtig migiruert werden
+void NetworkManagerCore::Connecting( SteamNetConnectionStatusChangedCallback_t* pInfo ){
+        
+    const char* pDebugMsg;
+    if( pInfo->m_eOldState != k_ESteamNetworkingConnectionState_Connected ){
+        assert( pInfo->m_eOldState == k_ESteamNetworkingConnectionState_Connecting );
+    }else {
+        if( pInfo->m_info.m_eState == k_ESteamNetworkingConnectionState_ProblemDetectedLocally){
+            pDebugMsg = "Problem detected Locally closing Connection to";
+        }else {
+            pDebugMsg = "Connection Closed by Peer";
+        }
+        //kann ip addresse net benutzenm weil net loggable gleiche mit debug discription :( mal gucken ginge sicher mit printf oder so
+        LOG_VCRITICAL(pDebugMsg, pInfo->m_info.m_szConnectionDescription, pInfo->m_info.m_eEndReason );
+    }
+
+
+    //Gucken wie man migiriert
+    /*
+    assert( m_SocketClientsMap.find( pInfo->m_info.m_hListenSocket ) != m_SocketClientsMap.end() );
+
+    //Verbindung entfernen
+    {
+        std::lock_guard<std::mutex> _lock (m_connection_lock);
+        auto& connections = m_SocketClientsMap.at(pInfo->m_info.m_hListenSocket).m_Clients;
+        auto con_it = std::find( connections.begin(), connections.end(), pInfo->m_hConn );
+        assert(con_it != connections.end());
+        connections.erase(con_it);
+    }
+
+    */
+
+    SteamNetworkingSockets()->CloseConnection( pInfo->m_hConn, 0, nullptr, false );
+
+    return;
+}
+
+void NetworkManagerCore::Disconnected( SteamNetConnectionStatusChangedCallback_t* pInfo ){
+
+    const char* pDebugMsg;
+    if( pInfo->m_eOldState != k_ESteamNetworkingConnectionState_Connected ){
+        assert( pInfo->m_eOldState == k_ESteamNetworkingConnectionState_Connecting );
+    }else {
+        if( pInfo->m_info.m_eState == k_ESteamNetworkingConnectionState_ProblemDetectedLocally){
+            pDebugMsg = "Problem detected Locally closing Connection to";
+        }else {
+            pDebugMsg = "Connection Closed by Peer";
+        }
+        //kann ip addresse net benutzenm weil net loggable gleiche mit debug discription :( mal gucken ginge sicher mit printf oder so
+        LOG_VCRITICAL(pDebugMsg, pInfo->m_info.m_szConnectionDescription, pInfo->m_info.m_eEndReason );
+    }
+
+    //Schauen wie man migriert zu neuem desing
+    /*
+    assert( m_SocketClientsMap.find( pInfo->m_info.m_hListenSocket ) != m_SocketClientsMap.end() );
+
+    //Verbindung entfernen
+    {
+        std::lock_guard<std::mutex> _lock (m_connection_lock);
+        auto& connections = m_SocketClientsMap.at(pInfo->m_info.m_hListenSocket).m_Clients;
+        auto con_it = std::find( connections.begin(), connections.end(), pInfo->m_hConn );
+        assert(con_it != connections.end());
+        connections.erase(con_it);
+    }
+
+    */
+
+    SteamNetworkingSockets()->CloseConnection( pInfo->m_hConn, 0, nullptr, false );
+
+    return;
+}
 
 }
