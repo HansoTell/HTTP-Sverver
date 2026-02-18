@@ -2,7 +2,6 @@
 
 #include "Datastrucutres/ThreadSaveQueue.h"
 #include "Error/Errorcodes.h"
-#include "Logger/Logger.h"
 #include "steam/steamclientpublic.h"
 #include "steam/steamnetworkingtypes.h"
 #include "http/HTTPinitialization.h"
@@ -20,9 +19,12 @@ namespace http{
 
 void NetworkManager::init(){
 
+    //Zu lambda konvertieren?
     SteamNetworkingUtils()->SetGlobalCallback_SteamNetConnectionStatusChanged( OnConnectionStatusChangedCallback );
 
     m_pInterface = SteamNetworkingSockets(); 
+
+    m_Core = std::make_unique<NetworkManagerCore>( m_pInterface );
 
     m_ListenerHandlerIndex = 1;
 
@@ -35,33 +37,20 @@ void NetworkManager::kill(){
 
     if( m_CallBackThread.joinable())
         m_CallBackThread.join();
+
+    //richtige Stelle?
+    m_Core.reset(nullptr);
 }
 
 HListener NetworkManager::createListener( const char* ListenerName ) {
+    //dummy meVythode die methode aus core in einer queue legt und einen future returned oder sowas
 
-    assert(m_ListenerHandlerIndex < MAXLOGSIZE);
-    assert(m_Listeners.find(m_ListenerHandlerIndex) == m_Listeners.end());
-
-    HListener handler = m_ListenerHandlerIndex;
-
-    m_Listeners.emplace(handler, ListenerInfo(std::make_unique<Listener>(m_pInterface)) );
-    if( ListenerName )
-        strncpy(m_Listeners.at(handler).ListenerName, ListenerName, 512);
-
-    m_ListenerHandlerIndex++;
-
-    return handler;
+    return 1;
 }
 
 //can return invalid listener
 Result<void> NetworkManager::DestroyListener( HListener listener ){
-
-    if(auto err = isValidListenerHandler(listener); err.isErr())
-        return err;
-
-    m_Listeners.at(listener).m_Listener.reset(nullptr);
-    m_Listeners.erase(listener);
-
+    //dummy meVythode die methode aus core in einer queue legt und einen future returned oder sowas
     return {};
 }
 
@@ -69,19 +58,7 @@ Result<void> NetworkManager::DestroyListener( HListener listener ){
 //kann invald listener returnrn
 Result<void> NetworkManager::startListening( HListener listener, u_int16_t port){
 
-    if(auto err = isValidListenerHandler(listener); err.isErr())
-        return err;
-    
-    //muss socket und pollgroup return
-    
-    ListenerInfo& info = m_Listeners.at(listener);
-
-    if(auto err = info.m_Listener->startListening( port ); err.isErr() )
-        return err;
-
-    info.m_Socket = 1;
-    info.m_PollGroup = 2;
-    
+    //dummy meVythode die methode aus core in einer queue legt und einen future returned oder sowas
 
     std::lock_guard<std::mutex> _lock (m_connection_lock);
     m_Connections_open=true;
@@ -93,37 +70,16 @@ Result<void> NetworkManager::startListening( HListener listener, u_int16_t port)
 //can return invalid Listener
 Result<void> NetworkManager::stopListening( HListener listener ){
 
-    if(auto err = isValidListenerHandler(listener); err.isErr())
-        return err;
-
-    //Frage halt müssen wir socket raus nehmen aus interner liste... eig ja schon implioziert das ja schon
-    //und was ist mit diesem einen error den wir ablegen? was wird da eig gecalled
-    //finden wir es so gut, dass bei einem einfachem error direkt das socket zerstört wird??
-    //notifySocketDestruction problem dass das immer wenn auch implizit das aufgerufen wird--> sollten da eig allgemein eine bessere lösung finden so zu viel implizit
-    //
-    m_Listeners.at(listener).m_Listener->stopListening();
-
+    //dummy meVythode die methode aus core in einer queue legt und einen future returned oder sowas
 
     return {};
 }
 
 template<typename T>
 ThreadSaveQueue<T>* NetworkManager::getQueue( HListener listener, QueueType queueType ){
-    
-    //machen wir ernst result???
-    if(auto err = isValidListenerHandler(listener); err.isErr())
-        return nullptr;
+    //dummy meVythode die methode aus core in einer queue legt und einen future returned oder sowas
 
-    auto& pListener = m_Listeners.at(listener); 
-    switch ( queueType ) 
-    {
-        case ERROR:
-            return &(pListener.m_Listener->m_ErrorQueue);
-        case RECEIVED:
-            return &(pListener.m_Listener->m_RecivedMessegas);
-        case OUTGOING:
-            return &(pListener.m_Listener->m_OutgoingMessages);
-    }
+    return nullptr;
 }
 
 

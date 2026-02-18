@@ -1,6 +1,5 @@
 #pragma once
 
-#include <functional>
 #include <memory>
 #include <steam/steamnetworkingsockets.h>
 #include <steam/isteamnetworkingutils.h>
@@ -26,6 +25,14 @@
 //sollten auch nicht zurfrieden sein mit den map, also weil blockiert alles scalet schlecht
 //keine ahnung wie man die map thread sicher macht also man kann einach nie entfernen das wäre möglich --> würde fehler
 //bringen wie wenn man halt eine alte listener nummer imemr noch funktioniert
+//
+//
+//Desing : Brauchen einen teil der public alle methoden aufruft kann, die aber nur die entsprechenden funktion pointer ablegt
+//Bstandteil der die funktion pointer besitzt und damit auch die interne logik sowie die callback funktionen
+//Brauchen Thread bestandteil mit tick funktion die die poll Methoden aufruft
+//
+//also brauchen public Singelkton als Thread teil -> braucht die public aufrufbaren methoden
+//core teil -> braucht die logik und interna
 namespace http{
 
 #define HListener u_int64_t
@@ -58,6 +65,34 @@ struct ListenerInfo {
 };
 
 
+class NetworkManagerCore {
+public:
+    HListener createListener( const char* ListenerName );
+    Result<void> DestroyListener( HListener listener );
+
+    Result<void> startListening( HListener listener, u_int16_t port);
+    Result<void> stopListening( HListener listener );
+    template<typename T>
+    ThreadSaveQueue<T>* getQueue( HListener listener, QueueType queuetype);
+
+    void pollConnectionChanges();
+    void pollFunctionCalls();
+    
+    void callbackManager( SteamNetConnectionStatusChangedCallback_t *pInfo );
+
+public:
+    NetworkManagerCore( ISteamNetworkingSockets* interface );
+    NetworkManagerCore(const NetworkManagerCore& other) = delete;
+    NetworkManagerCore(NetworkManagerCore&& other) = delete;
+    ~NetworkManagerCore();
+private:
+    Result<void> isValidListenerHandler( HListener listenerHandel ) const;
+private:
+    std::unordered_map<HListener, ListenerInfo> m_Listeners;
+    u_int64_t m_ListenerHandlerIndex = HListener_Invalid;
+    ISteamNetworkingSockets* m_pInterface = nullptr;
+};
+
 class NetworkManager{
 public:
     static NetworkManager& Get(){
@@ -76,7 +111,8 @@ public:
     template<typename T>
     ThreadSaveQueue<T>* getQueue( HListener listener, QueueType queuetype);
 
-
+    //Hier stehen geblieben1
+    //muss glaube auch in core rein
     void callbackManager( SteamNetConnectionStatusChangedCallback_t *pInfo );
 
     //auch entfernen
@@ -87,31 +123,47 @@ public:
     const std::vector<HSteamNetConnection>* getClientList( HSteamListenSocket socket) const; 
 
 public:
+    //Kann das entfernt werden und durch eifnache Lambda ersetzt werden??
     static void OnConnectionStatusChangedCallback( SteamNetConnectionStatusChangedCallback_t *pInfo ){ NetworkManager::Get().callbackManager(pInfo); }
 public:
     ISteamNetworkingSockets* m_pInterface = nullptr;
 private:
+
+    //Neue methode die poll Funktionen called
+    void tick();
+
+    //kommmt core ig
     void pollConnectionChanges();
     void pollFunctionCalls();
 
+    //bleibt hier
     void Connecting( SteamNetConnectionStatusChangedCallback_t *pInfo );
     void Disconnected( SteamNetConnectionStatusChangedCallback_t *pInfo );
 
+    //kommt core
     Result<void> isValidListenerHandler( HListener listenerHandel ) const;
 private:
+    //bleibt heir
     bool m_Connections_open = true;
     std::mutex m_connection_lock;
     std::mutex m_callbackMutex;
     std::condition_variable m_callbackCV;
     std::thread m_CallBackThread;
     std::atomic<bool> m_running { true };
+    //
 
+    //soll entfernt werden
     std::unordered_map<HSteamListenSocket, SocketInfo> m_SocketClientsMap;
 
-    //Wie functions wrappen
+    //bleibt hier
     ThreadSaveQueue<std::string> m_FunctionCalls;
+
+    //in core 
     std::unordered_map<HListener, ListenerInfo> m_Listeners;
     u_int64_t m_ListenerHandlerIndex = HListener_Invalid;
+
+    //neu
+    std::unique_ptr<NetworkManagerCore> m_Core;
 };
 
 }
