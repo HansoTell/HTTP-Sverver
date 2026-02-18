@@ -15,6 +15,7 @@
 #include "Datastrucutres/ThreadSaveQueue.h"
 #include "http/HTTPinitialization.h"
 #include "http/listener.h"
+#include "steam/isteamnetworkingsockets.h"
 #include "steam/steamnetworkingtypes.h"
 
 
@@ -80,8 +81,6 @@ public:
     
     void callbackManager( SteamNetConnectionStatusChangedCallback_t *pInfo );
 public:
-
-public:
     NetworkManagerCore( ISteamNetworkingSockets* interface );
     NetworkManagerCore(const NetworkManagerCore& other) = delete;
     NetworkManagerCore(NetworkManagerCore&& other) = delete;
@@ -118,42 +117,30 @@ public:
     //auch entfernen
     void notifySocketCreation( HSteamListenSocket createdSocket, HSteamNetPollGroup pollGroup );
     void notifySocketDestruction( HSteamListenSocket destroyedSocket );
-
-    //auch entfernen
     const std::vector<HSteamNetConnection>* getClientList( HSteamListenSocket socket) const; 
 
+    void runCallbacks( SteamNetConnectionStatusChangedCallback_t* pInfo ) { m_Core->callbackManager( pInfo ); }
+
+public:
+    static void sOnConnectionStatusChangedCallback( SteamNetConnectionStatusChangedCallback_t* pInfo ) { NetworkManager::Get().runCallbacks( pInfo ); } 
 public:
     ISteamNetworkingSockets* m_pInterface = nullptr;
 private:
 
-    //Neue methode die poll Funktionen called
     void tick();
-
-    //kommmt core ig
-    void pollConnectionChanges();
-    void pollFunctionCalls();
+    void run();
 
 private:
-    //bleibt heir
-    bool m_Connections_open = true;
-    std::mutex m_connection_lock;
-    std::mutex m_callbackMutex;
-    std::condition_variable m_callbackCV;
-    std::thread m_CallBackThread;
     std::atomic<bool> m_running { true };
-    //
+    std::atomic<bool> m_Busy { true };
+    std::mutex m_ManagerMutex;
+    std::condition_variable m_callbackCV;
+    std::thread m_NetworkThread;
 
-    //soll entfernt werden
+    //soll entfernt werden-> könnten socket info halt als listener setzten
     std::unordered_map<HSteamListenSocket, SocketInfo> m_SocketClientsMap;
 
-    //bleibt hier
     ThreadSaveQueue<std::string> m_FunctionCalls;
-
-    //in core 
-    std::unordered_map<HListener, ListenerInfo> m_Listeners;
-    u_int64_t m_ListenerHandlerIndex = HListener_Invalid;
-
-    //neu
     std::unique_ptr<NetworkManagerCore> m_Core;
 };
 

@@ -10,32 +10,29 @@
 #include <memory>
 #include <mutex>
 #include <sys/types.h>
+#include <thread>
 #include <vector>
 
 namespace http{
 
 void NetworkManager::init(){
 
-    //Zu lambda konvertieren?
-    SteamNetworkingUtils()->SetGlobalCallback_SteamNetConnectionStatusChanged( OnConnectionStatusChangedCallback );
+    SteamNetworkingUtils()->SetGlobalCallback_SteamNetConnectionStatusChanged( sOnConnectionStatusChangedCallback );
 
     m_pInterface = SteamNetworkingSockets(); 
 
     m_Core = std::make_unique<NetworkManagerCore>( m_pInterface );
 
-    m_ListenerHandlerIndex = 1;
-
-    m_CallBackThread = std::thread ( [this](){ this->pollConnectionChanges(); } );
+    m_NetworkThread = std::thread ( [this](){ this->run(); } );
 }
 
 void NetworkManager::kill(){
     m_running = false;
     m_callbackCV.notify_all();
 
-    if( m_CallBackThread.joinable())
-        m_CallBackThread.join();
+    if( m_NetworkThread.joinable())
+        m_NetworkThread.join();
 
-    //richtige Stelle?
     m_Core.reset(nullptr);
 }
 
@@ -57,8 +54,8 @@ Result<void> NetworkManager::startListening( HListener listener, u_int16_t port)
 
     //dummy meVythode die methode aus core in einer queue legt und einen future returned oder sowas
 
-    std::lock_guard<std::mutex> _lock (m_connection_lock);
-    m_Connections_open=true;
+    //literarisch bei jeder methode callen dass engefangen wird zu listenen
+    m_Busy=true;
     m_callbackCV.notify_one();
                                              
     return {};
@@ -86,50 +83,47 @@ const std::vector<HSteamNetConnection>* NetworkManager::getClientList( HSteamLis
     return &(m_SocketClientsMap.at(socket).m_Clients); 
 }
 
+void NetworkManager::run(){
 
-void NetworkManager::pollConnectionChanges(){
-    std::unique_lock<std::mutex> lock (m_callbackMutex);
+    std::unique_lock<std::mutex> lock (m_ManagerMutex);
 
     while ( m_running ){
         m_callbackCV.wait(lock, [this](){
-            return m_Connections_open || !m_running;
+            return m_Busy || !m_running;
         });
 
         if( !m_running ) break; 
 
         lock.unlock();
 
-        while( m_Connections_open ){
-            
-            m_pInterface->RunCallbacks();
+        while( m_Busy ){
+            tick();
 
-            std::this_thread::sleep_for(std::chrono::milliseconds(10));
-
-            std::lock_guard<std::mutex> lock(m_connection_lock);
-            //funktioniert das beim erasen
-            if( m_SocketClientsMap.empty() )
-                m_Connections_open = false;
+            //das muss auf jeden fall mit neuer map intergriert werden
+            //wie macht man das richtig
+            if( m_SocketClientsMap.empty() && m_FunctionCalls.empty() )
+                m_Busy = false;
         }
 
         lock.lock();
     }
 }
 
-void NetworkManager::pollFunctionCalls(){
-    //wie integriert man?
 
+
+void NetworkManager::tick(){
+    m_Core->pollFunctionCalls();
+    m_Core->pollConnectionChanges();
+    //sleep?
+    std::this_thread::sleep_for(std::chrono::milliseconds(5));
 }
 
 
 void NetworkManager::notifySocketCreation( HSteamListenSocket createdSocket, HSteamNetPollGroup pollGroup ){
-    std::lock_guard<std::mutex> lock(m_connection_lock);
-
     m_SocketClientsMap.emplace(createdSocket, pollGroup);
 } 
 
 void NetworkManager::notifySocketDestruction( HSteamListenSocket destroyedSocket ){
-
-    std::lock_guard<std::mutex> lock(m_connection_lock);
     m_SocketClientsMap.erase( destroyedSocket );
 }
 

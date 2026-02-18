@@ -1,14 +1,14 @@
 #include "Datastrucutres/ThreadSaveQueue.h"
+#include "Error/Errorcodes.h"
 #include "http/HTTPinitialization.h"
 #include "http/NetworkManager.h"
 #include "steam/isteamnetworkingsockets.h"
+#include "steam/steamnetworkingtypes.h"
+#include <cassert>
 
 namespace http{
 
-NetworkManagerCore::NetworkManagerCore( ISteamNetworkingSockets* interface ) : m_pInterface(interface) {
-    //was genau muss hier geschehen
-
-}
+NetworkManagerCore::NetworkManagerCore( ISteamNetworkingSockets* interface ) : m_pInterface(interface), m_ListenerHandlerIndex(1){}
 
 NetworkManagerCore::~NetworkManagerCore() {
 
@@ -47,8 +47,10 @@ Result<void> NetworkManagerCore::startListening( HListener listener, u_int16_t p
         return err;
     
     //muss socket und pollgroup return
-    
     ListenerInfo& info = m_Listeners.at(listener);
+
+    if( info.m_Socket != k_HSteamListenSocket_Invalid || info.m_Socket != k_HSteamNetPollGroup_Invalid )
+        return MAKE_ERROR(HTTPErrors::eInvalidSocket, "Already Listening on this Scoket -> Socket/Pollgroup Valid" );
 
     if(auto err = info.m_Listener->startListening( port ); err.isErr() )
         return err;
@@ -64,12 +66,21 @@ Result<void> NetworkManagerCore::stopListening( HListener listener ){
     if(auto err = isValidListenerHandler(listener); err.isErr())
         return err;
 
+    ListenerInfo& info = m_Listeners.at(listener);
+
+    if( info.m_PollGroup == k_HSteamNetPollGroup_Invalid || info.m_Socket == k_HSteamListenSocket_Invalid )
+        return MAKE_ERROR(HTTPErrors::eInvalidSocket, "Not currently Listening (Double Call?)");
+
+    info.m_PollGroup = k_HSteamNetPollGroup_Invalid;
+    info.m_Socket = k_HSteamListenSocket_Invalid;
+
     //Frage halt müssen wir socket raus nehmen aus interner liste... eig ja schon implioziert das ja schon
     //und was ist mit diesem einen error den wir ablegen? was wird da eig gecalled
     //finden wir es so gut, dass bei einem einfachem error direkt das socket zerstört wird??
     //notifySocketDestruction problem dass das immer wenn auch implizit das aufgerufen wird--> sollten da eig allgemein eine bessere lösung finden so zu viel implizit
+    //müssen die connections beenden auch wenn wir nicht instant halt den thread beenden, weil ja noch outgoing messages gesendet werden soll oder?
     //
-    m_Listeners.at(listener).m_Listener->stopListening();
+    info.m_Listener->stopListening();
 
 
     return {};
@@ -131,7 +142,6 @@ void NetworkManagerCore::callbackManager( SteamNetConnectionStatusChangedCallbac
     }
 }
 
-//Muss noch richtig migiruert werden
 void NetworkManagerCore::Connecting( SteamNetConnectionStatusChangedCallback_t* pInfo ){
         
     const char* pDebugMsg;
@@ -147,6 +157,7 @@ void NetworkManagerCore::Connecting( SteamNetConnectionStatusChangedCallback_t* 
         LOG_VCRITICAL(pDebugMsg, pInfo->m_info.m_szConnectionDescription, pInfo->m_info.m_eEndReason );
     }
 
+    
 
     //Gucken wie man migiriert
     /*
@@ -201,6 +212,14 @@ void NetworkManagerCore::Disconnected( SteamNetConnectionStatusChangedCallback_t
     SteamNetworkingSockets()->CloseConnection( pInfo->m_hConn, 0, nullptr, false );
 
     return;
+}
+
+void NetworkManagerCore::pollConnectionChanges(){
+    m_pInterface->RunCallbacks();
+}
+
+void NetworkManagerCore::pollFunctionCalls(){
+
 }
 
 }
