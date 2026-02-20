@@ -43,14 +43,9 @@ enum QueueType {
     ERROR = 0, RECEIVED = 1, OUTGOING = 2
 };
 
-struct SocketInfo {
-    HSteamNetPollGroup m_PollGroup;
-    std::vector<HSteamNetConnection> m_Clients;   
-
-    SocketInfo(HSteamNetConnection pollGroup) : m_PollGroup(pollGroup), m_Clients(64){}
-    SocketInfo(const SocketInfo& other) = default;
-    SocketInfo(SocketInfo&& other) : m_PollGroup(other.m_PollGroup), m_Clients(std::move(other.m_PollGroup)) {}
-    ~SocketInfo() = default;
+struct Connections{
+    HSteamNetConnection m_connection;
+    bool isServed = false;
 };
 
 struct ListenerInfo {
@@ -58,7 +53,6 @@ struct ListenerInfo {
     char ListenerName[512] = "";
     HSteamListenSocket m_Socket = k_HSteamListenSocket_Invalid;
     HSteamNetPollGroup m_PollGroup = k_HSteamNetPollGroup_Invalid;
-    std::vector<HSteamNetConnection> m_Clients = std::vector<HSteamNetConnection>(64);
     std::mutex test();
 
     ListenerInfo( std::unique_ptr<Listener> listener) 
@@ -68,13 +62,18 @@ struct ListenerInfo {
 
 class NetworkManagerCore {
 public:
+    //sollten schon so machen dass da reserved wird an platz geht ja so nicht
+    //wie setzten wird eigentlich served haben ja gar keine idee davon
+    //können bestimmt public los werden
+    std::unordered_map<HSteamListenSocket, std::vector<Connections>> m_SocketClientsMap;
+public:
     HListener createListener( const char* ListenerName );
     Result<void> DestroyListener( HListener listener );
 
     Result<void> startListening( HListener listener, u_int16_t port);
     Result<void> stopListening( HListener listener );
     template<typename T>
-    ThreadSaveQueue<T>* getQueue( HListener listener, QueueType queuetype);
+    Result<ThreadSaveQueue<T>*> getQueue( HListener listener, QueueType queuetype);
 
     void pollConnectionChanges();
     void pollFunctionCalls();
@@ -92,6 +91,7 @@ private:
     void Disconnected( SteamNetConnectionStatusChangedCallback_t *pInfo );
 private:
     std::unordered_map<HListener, ListenerInfo> m_Listeners;
+
     u_int64_t m_ListenerHandlerIndex = HListener_Invalid;
     ISteamNetworkingSockets* m_pInterface = nullptr;
 };
@@ -137,8 +137,6 @@ private:
     std::condition_variable m_callbackCV;
     std::thread m_NetworkThread;
 
-    //soll entfernt werden-> könnten socket info halt als listener setzten
-    std::unordered_map<HSteamListenSocket, SocketInfo> m_SocketClientsMap;
 
     ThreadSaveQueue<std::string> m_FunctionCalls;
     std::unique_ptr<NetworkManagerCore> m_Core;

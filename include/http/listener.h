@@ -9,8 +9,14 @@
 #include "http/Request.h"
 #include "Datastrucutres/ThreadSaveQueue.h"
 #include "steam/isteamnetworkingsockets.h"
+#include "steam/steamnetworkingtypes.h"
 
 namespace http{
+
+struct SocketHandlers {
+    HSteamListenSocket m_Socket;
+    HSteamNetPollGroup m_PollGroup;
+};
 
 class Listener {
 public:
@@ -19,7 +25,8 @@ public:
     //kann invalid poll group error on listener enthalten
     ThreadSaveQueue<Error::ErrorValue<HTTPErrors>> m_ErrorQueue;
 public:
-    Result<void> startListening( u_int16_t port );
+    Result<SocketHandlers> initSocket( u_int16_t port );
+    void startListening();
     void stopListening();
 public:
     Listener();
@@ -30,7 +37,6 @@ public:
 private:
     void listen();
 
-    Result<void> initSocket( u_int16_t port );
     void DestroySocket();
 
     void pollIncMessages();

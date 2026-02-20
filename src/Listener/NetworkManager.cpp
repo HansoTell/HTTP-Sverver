@@ -78,9 +78,12 @@ ThreadSaveQueue<T>* NetworkManager::getQueue( HListener listener, QueueType queu
 
 
 const std::vector<HSteamNetConnection>* NetworkManager::getClientList( HSteamListenSocket socket) const{    
+    /*
     assert(m_SocketClientsMap.find(socket) != m_SocketClientsMap.end());
 
     return &(m_SocketClientsMap.at(socket).m_Clients); 
+    */
+    return nullptr;
 }
 
 void NetworkManager::run(){
@@ -99,9 +102,7 @@ void NetworkManager::run(){
         while( m_Busy ){
             tick();
 
-            //das muss auf jeden fall mit neuer map intergriert werden
-            //wie macht man das richtig
-            if( m_SocketClientsMap.empty() && m_FunctionCalls.empty() )
+            if( m_Core->m_SocketClientsMap.empty() && m_FunctionCalls.empty() )
                 m_Busy = false;
         }
 
@@ -114,17 +115,16 @@ void NetworkManager::run(){
 void NetworkManager::tick(){
     m_Core->pollFunctionCalls();
     m_Core->pollConnectionChanges();
-    //sleep?
     std::this_thread::sleep_for(std::chrono::milliseconds(5));
 }
 
 
 void NetworkManager::notifySocketCreation( HSteamListenSocket createdSocket, HSteamNetPollGroup pollGroup ){
-    m_SocketClientsMap.emplace(createdSocket, pollGroup);
+
 } 
 
 void NetworkManager::notifySocketDestruction( HSteamListenSocket destroyedSocket ){
-    m_SocketClientsMap.erase( destroyedSocket );
+
 }
 
 }

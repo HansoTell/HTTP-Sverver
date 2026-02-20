@@ -1,5 +1,6 @@
 #include "http/listener.h"
 
+#include "http/HTTPinitialization.h"
 #include "http/NetworkManager.h"
 #include "steam/isteamnetworkingsockets.h"
 
@@ -33,17 +34,12 @@ namespace http{
         LOG_INFO("Stopped Listening Thread");
     }
 
-    Result<void> Listener::startListening( u_int16_t port ){
-        std::lock_guard<std::mutex> _lock (m_ListenMutex);
-        if( auto result = initSocket( port ); result.isErr() )
-            return result;
+    void Listener::startListening(){
         
+        std::lock_guard<std::mutex> _lock (m_ListenMutex);
         m_listening = true;
         m_ListenCV.notify_one();
 
-        LOG_VINFO("Started Listening on Port", port);
-
-        return {};
     }
 
     void Listener::stopListening () {
@@ -53,7 +49,7 @@ namespace http{
         LOG_INFO("Stopped Listening");
     }
 
-    Result<void> Listener::initSocket( u_int16_t port ){
+    Result<SocketHandlers> Listener::initSocket( u_int16_t port ){
 
         SteamNetworkingIPAddr address;
         address.Clear();
@@ -84,7 +80,7 @@ namespace http{
 
         NetworkManager::Get().notifySocketCreation( m_Socket, m_pollGroup );
 
-        return {};
+        return Result<SocketHandlers> ( { m_Socket, m_pollGroup } );
     }
 
     void Listener::listen(){
@@ -108,7 +104,13 @@ namespace http{
                 std::this_thread::sleep_for(std::chrono::milliseconds(10));
             }
             LOG_DEBUG("Left Listening while Loop");
-            DestroySocket();
+
+            //Wollen wir nicht mehr so sondern wir ficken krank einfach rein da wird direkt alles beendet
+            //Brauchen dann aber zusätzliche neue methode die direkt starten kann ohne zu zerstören und stoppen kann ohne
+            // müssen wir immer socket schließen wenn pausieren???
+            // --> eher nicht weil wir ja globalenm callback haben also müsten sowas speichern wie aktiv oder nicht 
+            //Problem auch wenn man beendet und startet auf neuem socket werden ja alte queues noch voll sein 
+            //DestroySocket();
         }
     }
 
@@ -119,6 +121,10 @@ namespace http{
         int messages_recived_counter = 0;
 
         while( messages_recived_counter < MAX_MESSAGES_PER_SESSION ){
+
+            if( !m_listening || !m_running )
+                break;
+            
             SteamNetworkingMessage_t* pIncMessage = nullptr;
 
             int message_Recived = m_pInterface->ReceiveMessagesOnPollGroup(m_pollGroup, &pIncMessage, 1);
@@ -154,6 +160,9 @@ namespace http{
         int messages_send_counter = 0;
         
         while( messages_send_counter < MAX_MESSAGES_PER_SESSION ){
+
+            if( !m_listening || !m_running )
+                break;
 
             std::optional<Request> OutMessage_opt = m_OutgoingMessages.try_pop();        
 

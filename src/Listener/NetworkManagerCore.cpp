@@ -46,18 +46,24 @@ Result<void> NetworkManagerCore::startListening( HListener listener, u_int16_t p
     if(auto err = isValidListenerHandler(listener); err.isErr())
         return err;
     
-    //muss socket und pollgroup return
     ListenerInfo& info = m_Listeners.at(listener);
 
     if( info.m_Socket != k_HSteamListenSocket_Invalid || info.m_Socket != k_HSteamNetPollGroup_Invalid )
         return MAKE_ERROR(HTTPErrors::eInvalidSocket, "Already Listening on this Scoket -> Socket/Pollgroup Valid" );
 
-    if(auto err = info.m_Listener->startListening( port ); err.isErr() )
-        return err;
-
-    info.m_Socket = 1;
-    info.m_PollGroup = 2;
+    auto result = info.m_Listener->initSocket( port );
+    if( result.isErr() )
+        return Result<void>(result.error());
     
+    auto& SocketHandlers = result.value();
+
+    info.m_Socket = SocketHandlers.m_Socket;
+    info.m_PollGroup = SocketHandlers.m_PollGroup;
+
+    info.m_Listener->startListening(); 
+    
+    LOG_VINFO("Started Listening on Port", port);
+
     return {};
 }
 
@@ -88,11 +94,10 @@ Result<void> NetworkManagerCore::stopListening( HListener listener ){
 
 
 template<typename T>
-ThreadSaveQueue<T>* NetworkManagerCore::getQueue( HListener listener, QueueType queueType ){
+Result<ThreadSaveQueue<T>*> NetworkManagerCore::getQueue( HListener listener, QueueType queueType ){
     
-    //machen wir ernst result???
     if(auto err = isValidListenerHandler(listener); err.isErr())
-        return nullptr;
+        return err;
 
     auto& pListener = m_Listeners.at(listener); 
     switch ( queueType ) 
