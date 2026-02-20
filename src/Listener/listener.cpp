@@ -3,22 +3,18 @@
 #include "http/HTTPinitialization.h"
 #include "http/NetworkManager.h"
 #include "steam/isteamnetworkingsockets.h"
+#include "steam/steamnetworkingtypes.h"
 
 #include <chrono>
 #include <cstring>
+#include <functional>
 #include <optional>
 #include <utility>
 
 
 namespace http{
-    //Konstruktor for Testing purpuses
-    Listener::Listener(ISteamNetworkingSockets* interface) : m_pInterface(interface), m_listening(false), m_running(true) {
-        assert(m_pInterface != nullptr);
-        
-        m_ListenThread = std::thread([this](){ this->listen(); }); 
-    }
-
-    Listener::Listener() : m_listening(false), m_running(true), m_pInterface(NetworkManager::Get().m_pInterface){ 
+    Listener::Listener(ISteamNetworkingSockets* interface, std::function<void(HSteamListenSocket, HSteamNetConnection)>  ConnectionServedCallback) 
+            : m_pInterface(interface), m_listening(false), m_running(true), m_ConnectionServedCallback(ConnectionServedCallback){
         assert(m_pInterface != nullptr);
         
         LOG_INFO("Started Listening Thread");
@@ -173,6 +169,8 @@ namespace http{
 
             const char* msg_c = OutMessage.m_Message.c_str();
             m_pInterface->SendMessageToConnection(OutMessage.m_Connection, &msg_c, (u_int32_t)strlen(msg_c), k_nSteamNetworkingSend_Reliable, nullptr);
+
+            m_ConnectionServedCallback(m_Socket, OutMessage.m_Connection);
         }
 
     }

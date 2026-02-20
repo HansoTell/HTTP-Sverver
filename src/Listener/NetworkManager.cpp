@@ -55,6 +55,7 @@ Result<void> NetworkManager::startListening( HListener listener, u_int16_t port)
     //dummy meVythode die methode aus core in einer queue legt und einen future returned oder sowas
 
     //literarisch bei jeder methode callen dass engefangen wird zu listenen
+    std::lock_guard<std::mutex> _lock(m_ManagerMutex);
     m_Busy=true;
     m_callbackCV.notify_one();
                                              
@@ -74,6 +75,11 @@ ThreadSaveQueue<T>* NetworkManager::getQueue( HListener listener, QueueType queu
     //dummy meVythode die methode aus core in einer queue legt und einen future returned oder sowas
 
     return nullptr;
+}
+
+void NetworkManager::ConnectionServed( HSteamListenSocket socket, HSteamNetConnection connection ){
+
+    //dummy meVythode die methode aus core in einer queue legt und einen future returned oder sowas
 }
 
 

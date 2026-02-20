@@ -1,5 +1,6 @@
 #pragma once
 
+#include <functional>
 #include <steam/steamnetworkingsockets.h>
 #include <stdint.h>
 #include <thread>
@@ -29,8 +30,7 @@ public:
     void startListening();
     void stopListening();
 public:
-    Listener();
-    Listener(ISteamNetworkingSockets* interface);
+    Listener(ISteamNetworkingSockets* interface, std::function<void(HSteamListenSocket, HSteamNetConnection)> ConnectionServedCallback);
     Listener(const Listener& other) = delete;
     Listener(Listener&& other) = delete;
     ~Listener();
@@ -51,6 +51,7 @@ private:
     std::atomic<bool> m_listening;
     std::mutex m_ListenMutex;
     std::condition_variable m_ListenCV;
+    std::function<void(HSteamListenSocket, HSteamNetConnection)>  m_ConnectionServedCallback;
 };
 
 }

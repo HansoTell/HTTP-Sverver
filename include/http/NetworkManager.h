@@ -63,7 +63,6 @@ struct ListenerInfo {
 class NetworkManagerCore {
 public:
     //sollten schon so machen dass da reserved wird an platz geht ja so nicht
-    //wie setzten wird eigentlich served haben ja gar keine idee davon
     //können bestimmt public los werden
     std::unordered_map<HSteamListenSocket, std::vector<Connections>> m_SocketClientsMap;
 public:
@@ -74,6 +73,8 @@ public:
     Result<void> stopListening( HListener listener );
     template<typename T>
     Result<ThreadSaveQueue<T>*> getQueue( HListener listener, QueueType queuetype);
+    //name = tot
+    void ConnectionServed( HSteamListenSocket socket , HSteamNetConnection connection );
 
     void pollConnectionChanges();
     void pollFunctionCalls();
@@ -113,6 +114,7 @@ public:
     Result<void> stopListening( HListener listener );
     template<typename T>
     ThreadSaveQueue<T>* getQueue( HListener listener, QueueType queuetype);
+    void ConnectionServed( HSteamListenSocket socket, HSteamNetConnection connection );
 
     //auch entfernen
     void notifySocketCreation( HSteamListenSocket createdSocket, HSteamNetPollGroup pollGroup );
@@ -123,6 +125,7 @@ public:
 
 public:
     static void sOnConnectionStatusChangedCallback( SteamNetConnectionStatusChangedCallback_t* pInfo ) { NetworkManager::Get().runCallbacks( pInfo ); } 
+    static void sConnectionServedCallback( HSteamListenSocket socket, HSteamNetConnection connection ) { NetworkManager::Get().ConnectionServed( socket, connection ); }
 public:
     ISteamNetworkingSockets* m_pInterface = nullptr;
 private:

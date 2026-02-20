@@ -4,6 +4,7 @@
 #include "http/NetworkManager.h"
 #include "steam/isteamnetworkingsockets.h"
 #include "steam/steamnetworkingtypes.h"
+#include <algorithm>
 #include <cassert>
 
 namespace http{
@@ -21,7 +22,7 @@ HListener NetworkManagerCore::createListener( const char* ListenerName ){
 
     HListener handler = m_ListenerHandlerIndex;
 
-    m_Listeners.emplace(handler, ListenerInfo(std::make_unique<Listener>(m_pInterface)) );
+    m_Listeners.emplace(handler, ListenerInfo(std::make_unique<Listener>(m_pInterface, NetworkManager::sConnectionServedCallback)) );
     if( ListenerName )
         strncpy(m_Listeners.at(handler).ListenerName, ListenerName, 512);
 
@@ -109,6 +110,20 @@ Result<ThreadSaveQueue<T>*> NetworkManagerCore::getQueue( HListener listener, Qu
         case OUTGOING:
             return &(pListener.m_Listener->m_OutgoingMessages);
     }
+}
+
+void NetworkManagerCore::ConnectionServed( HSteamListenSocket socket, HSteamNetConnection connection ){
+    assert(m_SocketClientsMap.find(socket) != m_SocketClientsMap.end());
+
+    auto& allClients = m_SocketClientsMap.at(socket);
+
+    auto it = std::find_if(allClients.begin(), allClients.end(), [&connection](const Connections& con){
+        return con.m_connection == connection;
+    }); 
+
+    assert(it != allClients.end());
+
+    it->isServed = true;
 }
 
 void NetworkManagerCore::callbackManager( SteamNetConnectionStatusChangedCallback_t* pInfo ){
