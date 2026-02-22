@@ -26,14 +26,6 @@
 //sollten auch nicht zurfrieden sein mit den map, also weil blockiert alles scalet schlecht
 //keine ahnung wie man die map thread sicher macht also man kann einach nie entfernen das wäre möglich --> würde fehler
 //bringen wie wenn man halt eine alte listener nummer imemr noch funktioniert
-//
-//
-//Desing : Brauchen einen teil der public alle methoden aufruft kann, die aber nur die entsprechenden funktion pointer ablegt
-//Bstandteil der die funktion pointer besitzt und damit auch die interne logik sowie die callback funktionen
-//Brauchen Thread bestandteil mit tick funktion die die poll Methoden aufruft
-//
-//also brauchen public Singelkton als Thread teil -> braucht die public aufrufbaren methoden
-//core teil -> braucht die logik und interna
 namespace http{
 
 #define HListener u_int64_t
@@ -48,12 +40,23 @@ struct Connections{
     bool isServed = false;
 };
 
+//auch die idee ist halt doof weil in listener würden wir ja shcon gerne socket verwalten weil von listner wissen wir nicht ob aktiv oder nicht
+//und haben halt niergendwo wo wir wirklich socket haben
+//In AllClients nicht mehr den vector sondern SocketInfo speichern
+struct SocketInfo{
+    std::vector<Connections> m_AllConnections = std::vector<Connections>(128);
+    HSteamNetPollGroup m_PollGroup = k_HSteamNetPollGroup_Invalid;
+
+
+    SocketInfo(HSteamNetPollGroup pollGroup) : m_PollGroup(pollGroup){}
+};
+
 struct ListenerInfo {
     std::unique_ptr<Listener> m_Listener = nullptr;
     char ListenerName[512] = "";
     HSteamListenSocket m_Socket = k_HSteamListenSocket_Invalid;
+    //das dann halt hier entfernen auch wenns weh tut
     HSteamNetPollGroup m_PollGroup = k_HSteamNetPollGroup_Invalid;
-    std::mutex test();
 
     ListenerInfo( std::unique_ptr<Listener> listener) 
         : m_Listener(std::move(listener)) {} 
@@ -64,7 +67,7 @@ class NetworkManagerCore {
 public:
     //sollten schon so machen dass da reserved wird an platz geht ja so nicht
     //können bestimmt public los werden
-    std::unordered_map<HSteamListenSocket, std::vector<Connections>> m_SocketClientsMap;
+    std::unordered_map<HSteamListenSocket, SocketInfo> m_SocketClientsMap;
 public:
     HListener createListener( const char* ListenerName );
     Result<void> DestroyListener( HListener listener );
