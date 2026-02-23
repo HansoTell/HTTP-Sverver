@@ -11,7 +11,6 @@
 #include <mutex>
 #include <sys/types.h>
 #include <thread>
-#include <vector>
 
 namespace http{
 
@@ -65,7 +64,10 @@ Result<void> NetworkManager::startListening( HListener listener, u_int16_t port)
 //can return invalid Listener
 Result<void> NetworkManager::stopListening( HListener listener ){
 
+
     //dummy meVythode die methode aus core in einer queue legt und einen future returned oder sowas
+    //
+    //Alle unserved Connections des sockets müssen deafult response geshcickt werden
 
     return {};
 }
@@ -80,16 +82,6 @@ ThreadSaveQueue<T>* NetworkManager::getQueue( HListener listener, QueueType queu
 void NetworkManager::ConnectionServed( HSteamListenSocket socket, HSteamNetConnection connection ){
 
     //dummy meVythode die methode aus core in einer queue legt und einen future returned oder sowas
-}
-
-
-const std::vector<HSteamNetConnection>* NetworkManager::getClientList( HSteamListenSocket socket) const{    
-    /*
-    assert(m_SocketClientsMap.find(socket) != m_SocketClientsMap.end());
-
-    return &(m_SocketClientsMap.at(socket).m_Clients); 
-    */
-    return nullptr;
 }
 
 void NetworkManager::run(){
@@ -116,21 +108,9 @@ void NetworkManager::run(){
     }
 }
 
-
-
 void NetworkManager::tick(){
     m_Core->pollFunctionCalls();
     m_Core->pollConnectionChanges();
     std::this_thread::sleep_for(std::chrono::milliseconds(5));
 }
-
-
-void NetworkManager::notifySocketCreation( HSteamListenSocket createdSocket, HSteamNetPollGroup pollGroup ){
-
-} 
-
-void NetworkManager::notifySocketDestruction( HSteamListenSocket destroyedSocket ){
-
-}
-
 }

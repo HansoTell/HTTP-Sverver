@@ -11,9 +11,7 @@ namespace http{
 
 NetworkManagerCore::NetworkManagerCore( ISteamNetworkingSockets* interface ) : m_pInterface(interface), m_ListenerHandlerIndex(1){}
 
-NetworkManagerCore::~NetworkManagerCore() {
-
-}
+NetworkManagerCore::~NetworkManagerCore() {}
 
 HListener NetworkManagerCore::createListener( const char* ListenerName ){
 
@@ -76,19 +74,32 @@ Result<void> NetworkManagerCore::stopListening( HListener listener ){
 
     ListenerInfo& info = m_Listeners.at(listener);
 
+
     if( info.m_Socket == k_HSteamListenSocket_Invalid )
         return MAKE_ERROR(HTTPErrors::eInvalidSocket, "Not currently Listening (Double Call?)");
 
-    info.m_Socket = k_HSteamListenSocket_Invalid;
-
-    //Frage halt müssen wir socket raus nehmen aus interner liste... eig ja schon implioziert das ja schon
-    //und was ist mit diesem einen error den wir ablegen? was wird da eig gecalled
-    //finden wir es so gut, dass bei einem einfachem error direkt das socket zerstört wird??
-    //notifySocketDestruction problem dass das immer wenn auch implizit das aufgerufen wird--> sollten da eig allgemein eine bessere lösung finden so zu viel implizit
-    //müssen die connections beenden auch wenn wir nicht instant halt den thread beenden, weil ja noch outgoing messages gesendet werden soll oder?
-    //
     info.m_Listener->stopListening();
 
+    assert(m_SocketClientsMap.find(info.m_Socket) != m_SocketClientsMap.end());
+
+    auto& allConnections = m_SocketClientsMap.at(info.m_Socket).m_AllConnections;
+
+    for( auto& conn : allConnections ){
+        if(  !conn.isServed ){}
+        //Könnten auch sowas machen wie bei der inc queue alles einkommende zu blocken und dann noch alle deafult responses rein legen
+        //damit das thred save abläuft wäre so eine idee
+            //info.m_Listener->sendDeafultResponse();
+        m_pInterface->CloseConnection(conn.m_connection, 1, nullptr, false);
+    }
+
+    m_SocketClientsMap.erase(info.m_Socket);
+
+    info.m_Socket = k_HSteamListenSocket_Invalid;
+
+
+    info.m_Listener->stopListening();
+
+    LOG_VINFO("Destroyed Socket on Listener", info.ListenerName);
 
     return {};
 }

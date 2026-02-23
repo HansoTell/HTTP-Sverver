@@ -76,7 +76,6 @@ public:
     Result<void> stopListening( HListener listener );
     template<typename T>
     Result<ThreadSaveQueue<T>*> getQueue( HListener listener, QueueType queuetype);
-    //name = tot
     void ConnectionServed( HSteamListenSocket socket , HSteamNetConnection connection );
 
     void pollConnectionChanges();
@@ -118,11 +117,6 @@ public:
     template<typename T>
     ThreadSaveQueue<T>* getQueue( HListener listener, QueueType queuetype);
     void ConnectionServed( HSteamListenSocket socket, HSteamNetConnection connection );
-
-    //auch entfernen
-    void notifySocketCreation( HSteamListenSocket createdSocket, HSteamNetPollGroup pollGroup );
-    void notifySocketDestruction( HSteamListenSocket destroyedSocket );
-    const std::vector<HSteamNetConnection>* getClientList( HSteamListenSocket socket) const; 
 
     void runCallbacks( SteamNetConnectionStatusChangedCallback_t* pInfo ) { m_Core->callbackManager( pInfo ); }
 

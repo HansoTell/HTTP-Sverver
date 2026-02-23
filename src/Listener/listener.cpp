@@ -1,7 +1,6 @@
 #include "http/listener.h"
 
 #include "http/HTTPinitialization.h"
-#include "http/NetworkManager.h"
 #include "steam/isteamnetworkingsockets.h"
 #include "steam/steamnetworkingtypes.h"
 
@@ -74,8 +73,6 @@ namespace http{
             return error; 
         }
 
-        NetworkManager::Get().notifySocketCreation( m_Socket, m_pollGroup );
-
         return Result<SocketHandlers> ( { m_Socket, m_pollGroup } );
     }
 
@@ -101,12 +98,7 @@ namespace http{
             }
             LOG_DEBUG("Left Listening while Loop");
 
-            //Wollen wir nicht mehr so sondern wir ficken krank einfach rein da wird direkt alles beendet
-            //Brauchen dann aber zusätzliche neue methode die direkt starten kann ohne zu zerstören und stoppen kann ohne
-            // müssen wir immer socket schließen wenn pausieren???
-            // --> eher nicht weil wir ja globalenm callback haben also müsten sowas speichern wie aktiv oder nicht 
-            //Problem auch wenn man beendet und startet auf neuem socket werden ja alte queues noch voll sein 
-            //DestroySocket();
+            DestroySocket();
         }
     }
 
@@ -134,7 +126,6 @@ namespace http{
                 LOG_VERROR(err);
                 m_ErrorQueue.push(err);
 
-                //Thread pausieren bis server entscheidung getroffen hat wie weiter geht
                 m_listening = false;
                 break;
             }
@@ -177,21 +168,10 @@ namespace http{
 
     void Listener::DestroySocket(){
 
-        auto connectionList = NetworkManager::Get().getClientList( m_Socket );
-
-        for( auto con : *connectionList ){
-            //was machen wir senden deafult response oder senden wir nichts oder denen die noch nichts gesendet haben keine ahnung wird hiuer gehandelt auf jeden
-
-            m_pInterface->CloseConnection(con, 0, nullptr, false);
-        }
-
         m_pInterface->CloseListenSocket( m_Socket );
         m_Socket = k_HSteamListenSocket_Invalid;
-        NetworkManager::Get().notifySocketDestruction( m_Socket );
 
         m_pInterface->DestroyPollGroup( m_pollGroup );
         m_pollGroup = k_HSteamNetPollGroup_Invalid;
-
-        LOG_VINFO("Destroyed Socket");
     }
 }
