@@ -1,5 +1,6 @@
 #pragma once
 
+#include <functional>
 #include <memory>
 #include <steam/steamnetworkingsockets.h>
 #include <steam/isteamnetworkingutils.h>
@@ -65,21 +66,20 @@ struct ListenerInfo {
 
 class NetworkManagerCore {
 public:
-    //sollten schon so machen dass da reserved wird an platz geht ja so nicht
     //können bestimmt public los werden
     std::unordered_map<HSteamListenSocket, SocketInfo> m_SocketClientsMap;
 public:
     HListener createListener( const char* ListenerName );
     Result<void> DestroyListener( HListener listener );
 
-    Result<void> startListening( HListener listener, u_int16_t port);
+    Result<void> startListening( HListener listener, u_int16_t port );
     Result<void> stopListening( HListener listener );
     template<typename T>
     Result<ThreadSaveQueue<T>*> getQueue( HListener listener, QueueType queuetype);
     void ConnectionServed( HSteamListenSocket socket , HSteamNetConnection connection );
 
     void pollConnectionChanges();
-    void pollFunctionCalls();
+    void pollFunctionCalls( ThreadSaveQueue<std::function<void()>>* functionQueue );
     
     void callbackManager( SteamNetConnectionStatusChangedCallback_t *pInfo );
 public:
@@ -92,6 +92,7 @@ private:
 
     void Connecting( SteamNetConnectionStatusChangedCallback_t *pInfo );
     void Disconnected( SteamNetConnectionStatusChangedCallback_t *pInfo );
+
 private:
     std::unordered_map<HListener, ListenerInfo> m_Listeners;
 
@@ -130,6 +131,10 @@ private:
     void tick();
     void run();
 
+    template<typename Funktion>
+    auto executeFunktion(Funktion&& func) -> decltype(func());
+
+    void notifyFunktionCall();
 private:
     std::atomic<bool> m_running { true };
     std::atomic<bool> m_Busy { true };
@@ -138,8 +143,7 @@ private:
     std::thread m_NetworkThread;
 
 
-    ThreadSaveQueue<std::string> m_FunctionCalls;
+    ThreadSaveQueue<std::function<void()>> m_FunctionCalls;
     std::unique_ptr<NetworkManagerCore> m_Core;
 };
-
 }

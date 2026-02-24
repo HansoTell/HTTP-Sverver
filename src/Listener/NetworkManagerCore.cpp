@@ -6,6 +6,7 @@
 #include "steam/steamnetworkingtypes.h"
 #include <algorithm>
 #include <cassert>
+#include <sys/types.h>
 
 namespace http{
 
@@ -231,8 +232,17 @@ void NetworkManagerCore::pollConnectionChanges(){
     m_pInterface->RunCallbacks();
 }
 
-void NetworkManagerCore::pollFunctionCalls(){
+#define MAX_FUNCTIONS_PER_SESSION 20 
+void NetworkManagerCore::pollFunctionCalls( ThreadSaveQueue<std::function<void()>>* functionQueue ){
+    u_int16_t counter = 0;
+    while( !functionQueue->empty() || counter < MAX_FUNCTIONS_PER_SESSION ) {
+        auto funk_opt = functionQueue->try_pop();
+        if( !funk_opt.has_value() )
+            break;
+        auto funk = funk_opt.value();
+        funk();
 
+        counter++;
+    }
 }
-
 }
