@@ -16,7 +16,6 @@ NetworkManagerCore::~NetworkManagerCore() {}
 
 HListener NetworkManagerCore::createListener( const char* ListenerName ){
 
-    assert(m_ListenerHandlerIndex < MAXLOGSIZE);
     assert(m_Listeners.find(m_ListenerHandlerIndex) == m_Listeners.end());
 
     HListener handler = m_ListenerHandlerIndex;

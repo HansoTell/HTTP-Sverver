@@ -1,6 +1,5 @@
 #include "steam/isteamnetworkingsockets.h"
 #include "steam/steamnetworkingtypes.h"
-#include "gmock/gmock.h"
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
 #include <memory>

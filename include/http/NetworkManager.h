@@ -20,13 +20,7 @@
 #include "steam/steamnetworkingtypes.h"
 
 
-//Listener methoden auf hier mappen das von hier aufgerufen werden können
 //im server so bauen das es nur über ihn hier funktioniert
-//vielleicht umbauen dass callbacks und so in listener und destroy socket ev umbauen es könnte einfacher sein so
-//alle aufurfe aus listener entfernen und equally ersetzten
-//sollten auch nicht zurfrieden sein mit den map, also weil blockiert alles scalet schlecht
-//keine ahnung wie man die map thread sicher macht also man kann einach nie entfernen das wäre möglich --> würde fehler
-//bringen wie wenn man halt eine alte listener nummer imemr noch funktioniert
 namespace http{
 
 #define HListener u_int64_t

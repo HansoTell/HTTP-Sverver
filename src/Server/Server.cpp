@@ -1,10 +1,19 @@
+#include "Error/Errorcodes.h"
+#include "http/NetworkManager.h"
 #include <http/Server.h>
 #include <optional>
+#include <sys/types.h>
+
 
 namespace http{
 
     #define CPU_CORES std::thread::hardware_concurrency()
-    Server::Server() : m_bQuit(false), m_Listener(std::make_unique<Listener>()), m_CPUWorkers(std::make_unique<ThreadPool>(CPU_CORES)), m_APIWorkers(std::make_unique<ThreadPool> (4*CPU_CORES)){
+    Server::Server() 
+            : m_bQuit(false), m_CPUWorkers(std::make_unique<ThreadPool>(CPU_CORES)),
+                m_APIWorkers(std::make_unique<ThreadPool> (4*CPU_CORES)), m_rNetworkManager(NetworkManager::Get())
+    {
+        m_Listener = m_rNetworkManager.createListener(nullptr)  ;
+        
         m_ServerThread = std::thread([this](){ this->run(); });
     }
 
@@ -16,7 +25,7 @@ namespace http{
         //welche reihenfolge?
         m_CPUWorkers.reset( nullptr );
         m_APIWorkers.reset( nullptr );
-        m_Listener.reset( nullptr );
+        m_rNetworkManager.DestroyListener( m_Listener ) ;
     }
 
     void Server::run(){
@@ -29,13 +38,42 @@ namespace http{
         }
     }
 
+
+    void Server::startListening( u_int16_t port ){
+        auto erg = m_rNetworkManager.startListening( m_Listener, port);
+        
+        if( !erg.isErr() ){
+            return;
+        }
+
+        if ( erg.error().ErrorCode == HTTPErrors::eInvalidListener ){
+            //Können wir einfach neu starten ich meine wenn der listener nicht da ist dann brauchen wir neuen
+            //Aber alle alten nachrichten können mehr raus geschikt werden
+        }
+    
+        if( erg.error().ErrorCode == HTTPErrors::eSocketInitializationFailed ){
+        
+        }
+    }
+
+    void Server::stopListening(){
+        
+    }
+
     void Server::pollIncMessages(){
         #define REQUEST_LIMIT_PER_SESSION 100
         u_int16_t limitCounter = 0; 
 
+        auto pMessages = NetworkManager::Get().getQueue<Request>(m_Listener, QueueType::RECEIVED);
+
+        //ig das wird mal error handeling
+        if( !pMessages ){
+                
+        }
+
         while( limitCounter < REQUEST_LIMIT_PER_SESSION )
         {
-            std::optional<Request> msg = m_Listener->m_RecivedMessegas.try_pop();
+            std::optional<Request> msg = pMessages->try_pop();
             if( !msg.has_value() )
                 break;
 

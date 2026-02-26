@@ -2,9 +2,9 @@
 
 #include <steam/steamnetworkingsockets.h>
 
-#include "http/listener.h"
 #include "Request.h"
 #include "Datastrucutres/ThreadPool.h"
+#include "NetworkManager.h"
 
 
 namespace http{
@@ -13,15 +13,13 @@ namespace http{
     class Server {
     public:
         void setFileRoot();
-        void startListening( u_int16_t port, const char* socketName = nullptr ) { m_Listener->startListening( port, socketName ); }
-        void stopListening() { m_Listener->stopListening(); }
+        void startListening( u_int16_t port ); 
+        void stopListening(); 
     public:
         Server();
         Server(const Server& other) = delete;
         Server(Server&& other) = delete;
         ~Server();
-    public:
-
     private:
         void run();
         void pollIncMessages();
@@ -30,10 +28,11 @@ namespace http{
         void parseRequest( Request httpRequest );
 
     private:
+        NetworkManager& m_rNetworkManager;
+        
         std::thread m_ServerThread;
         std::atomic<bool> m_bQuit = false;
-
-        std::unique_ptr<Listener> m_Listener;
+        HListener m_Listener = HListener_Invalid;
 
         //Auslastung so monitoren und dann netowrk manager oder listener sagen request abzulehen bei überfüllung
         //länge von queues begrenzen 
