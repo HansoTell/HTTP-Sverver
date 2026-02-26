@@ -110,7 +110,7 @@ public:
     Result<void> startListening( HListener listener, u_int16_t port);
     Result<void> stopListening( HListener listener );
     template<typename T>
-    ThreadSaveQueue<T>* getQueue( HListener listener, QueueType queuetype);
+    Result<ThreadSaveQueue<T>*> getQueue( HListener listener, QueueType queuetype);
     void ConnectionServed( HSteamListenSocket socket, HSteamNetConnection connection );
 
     void runCallbacks( SteamNetConnectionStatusChangedCallback_t* pInfo ) { m_Core->callbackManager( pInfo ); }

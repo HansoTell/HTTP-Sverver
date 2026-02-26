@@ -64,12 +64,14 @@ namespace http{
         #define REQUEST_LIMIT_PER_SESSION 100
         u_int16_t limitCounter = 0; 
 
-        auto pMessages = NetworkManager::Get().getQueue<Request>(m_Listener, QueueType::RECEIVED);
+        auto Messages_or = NetworkManager::Get().getQueue<Request>(m_Listener, QueueType::RECEIVED);
 
         //ig das wird mal error handeling
-        if( !pMessages ){
+        if( Messages_or.isErr() ){
                 
         }
+
+        auto pMessages = Messages_or.value();
 
         while( limitCounter < REQUEST_LIMIT_PER_SESSION )
         {

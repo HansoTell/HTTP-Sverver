@@ -76,7 +76,7 @@ Result<void> NetworkManager::stopListening( HListener listener ){
 
 //überlegen result wegen listener fehler der returende werden kann
 template<typename T>
-ThreadSaveQueue<T>* NetworkManager::getQueue( HListener listener, QueueType queueType ){
+Result<ThreadSaveQueue<T>*> NetworkManager::getQueue( HListener listener, QueueType queueType ){
     notifyFunktionCall();
 
     return executeFunktion([=](){

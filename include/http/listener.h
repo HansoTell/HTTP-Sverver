@@ -74,6 +74,5 @@ private:
     //kann invalid poll group error on listener enthalten
     ThreadSaveQueue<Error::ErrorValue<HTTPErrors>> m_ErrorQueue;
 };
-
 }
 
