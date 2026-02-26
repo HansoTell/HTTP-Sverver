@@ -26,3 +26,7 @@ public:
     MOCK_METHOD(http::ThreadSaveQueue<http::Request>*, getReceivedQueue, (), (override));
     MOCK_METHOD(http::ThreadSaveQueue<http::Request>*, getOutgoingQueue, (), (override));
 };
+
+class MOCKListenerFactory : public http::IListenerFactory {
+    MOCK_METHOD(std::unique_ptr<http::IListener>, createListener, (), (override));
+};

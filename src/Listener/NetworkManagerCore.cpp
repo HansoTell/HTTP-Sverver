@@ -6,11 +6,14 @@
 #include "steam/steamnetworkingtypes.h"
 #include <algorithm>
 #include <cassert>
+#include <memory>
 #include <sys/types.h>
+#include <utility>
 
 namespace http{
 
-NetworkManagerCore::NetworkManagerCore( ISteamNetworkingSockets* interface ) : m_pInterface(interface), m_ListenerHandlerIndex(1){}
+NetworkManagerCore::NetworkManagerCore( ISteamNetworkingSockets* interface, std::unique_ptr<IListenerFactory>listenerFactory ) 
+    : m_pInterface(interface), m_ListenerHandlerIndex(1), m_ListenerFactory(std::move(listenerFactory)){}
 
 NetworkManagerCore::~NetworkManagerCore() {}
 
@@ -20,7 +23,9 @@ HListener NetworkManagerCore::createListener( const char* ListenerName ){
 
     HListener handler = m_ListenerHandlerIndex;
 
-    m_Listeners.emplace(handler, ListenerInfo(std::make_unique<Listener>(m_pInterface, NetworkManager::sConnectionServedCallback)) );
+    std::unique_ptr<IListener> listener = m_ListenerFactory->createListener();
+
+    m_Listeners.emplace(handler, ListenerInfo( std::move(listener )));
     if( ListenerName )
         strncpy(m_Listeners.at(handler).ListenerName, ListenerName, 512);
 

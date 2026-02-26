@@ -1,6 +1,7 @@
 #pragma once
 
 #include <functional>
+#include <memory>
 #include <steam/steamnetworkingsockets.h>
 #include <stdint.h>
 #include <sys/types.h>
@@ -34,6 +35,8 @@ public:
     virtual ThreadSaveQueue<Error::ErrorValue<HTTPErrors>>* getErrorQueue() = 0;
 
 };
+
+
 
 class Listener : public IListener {
 public:
@@ -73,6 +76,23 @@ private:
     ThreadSaveQueue<Request> m_OutgoingMessages;
     //kann invalid poll group error on listener enthalten
     ThreadSaveQueue<Error::ErrorValue<HTTPErrors>> m_ErrorQueue;
+};
+
+class IListenerFactory {
+public:
+    virtual ~IListenerFactory() = default;
+    virtual std::unique_ptr<IListener> createListener() = 0;
+};
+
+class ListenerFactory : public IListenerFactory {
+public:
+    ListenerFactory(ISteamNetworkingSockets* pInterface, std::function<void(HSteamListenSocket, HSteamNetConnection)>  ConnectionServedCallback ) 
+        : m_pInterface(pInterface), m_ConnectionServedCallback(ConnectionServedCallback){}
+
+    std::unique_ptr<IListener> createListener() override { return std::make_unique<Listener>(m_pInterface, m_ConnectionServedCallback); }
+private:
+    ISteamNetworkingSockets* m_pInterface;
+    std::function<void(HSteamListenSocket, HSteamNetConnection)>  m_ConnectionServedCallback;
 };
 }
 

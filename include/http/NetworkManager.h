@@ -53,9 +53,11 @@ struct ListenerInfo {
     //das dann halt hier entfernen auch wenns weh tut
     HSteamNetPollGroup m_PollGroup = k_HSteamNetPollGroup_Invalid;
 
-    ListenerInfo( std::unique_ptr<Listener> listener) 
+    ListenerInfo( std::unique_ptr<IListener> listener) 
         : m_Listener(std::move(listener)) {} 
 };
+
+
 
 
 class NetworkManagerCore {
@@ -77,7 +79,7 @@ public:
     
     void callbackManager( SteamNetConnectionStatusChangedCallback_t *pInfo );
 public:
-    NetworkManagerCore( ISteamNetworkingSockets* interface );
+    NetworkManagerCore( ISteamNetworkingSockets* interface, std::unique_ptr<IListenerFactory> listenerFactory );
     NetworkManagerCore(const NetworkManagerCore& other) = delete;
     NetworkManagerCore(NetworkManagerCore&& other) = delete;
     ~NetworkManagerCore();
@@ -92,6 +94,7 @@ private:
 
     u_int64_t m_ListenerHandlerIndex = HListener_Invalid;
     ISteamNetworkingSockets* m_pInterface = nullptr;
+    std::unique_ptr<IListenerFactory> m_ListenerFactory;
 };
 
 class NetworkManager{

@@ -17,13 +17,14 @@
 
 namespace http{
 
+//bräuchten Halt spezifisch für unterschiedliche interfaces von Listenern
 void NetworkManager::init(){
 
     SteamNetworkingUtils()->SetGlobalCallback_SteamNetConnectionStatusChanged( sOnConnectionStatusChangedCallback );
 
     m_pInterface = SteamNetworkingSockets(); 
 
-    m_Core = std::make_unique<NetworkManagerCore>( m_pInterface );
+    m_Core = std::make_unique<NetworkManagerCore>( m_pInterface, std::make_unique<ListenerFactory>(m_pInterface, sConnectionServedCallback) );
 
     m_NetworkThread = std::thread ( [this](){ this->run(); } );
 }
