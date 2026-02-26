@@ -47,7 +47,7 @@ struct SocketInfo{
 };
 
 struct ListenerInfo {
-    std::unique_ptr<Listener> m_Listener = nullptr;
+    std::unique_ptr<IListener> m_Listener = nullptr;
     char ListenerName[512] = "";
     HSteamListenSocket m_Socket = k_HSteamListenSocket_Invalid;
     //das dann halt hier entfernen auch wenns weh tut

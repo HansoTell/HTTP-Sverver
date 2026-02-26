@@ -115,11 +115,11 @@ Result<ThreadSaveQueue<T>*> NetworkManagerCore::getQueue( HListener listener, Qu
     switch ( queueType ) 
     {
         case ERROR:
-            return &(pListener.m_Listener->m_ErrorQueue);
+            return pListener.m_Listener->getErrorQueue();
         case RECEIVED:
-            return &(pListener.m_Listener->m_RecivedMessegas);
+            return pListener.m_Listener->getReceivedQueue();
         case OUTGOING:
-            return &(pListener.m_Listener->m_OutgoingMessages);
+            return pListener.m_Listener->getOutgoingQueue();
     }
 }
 

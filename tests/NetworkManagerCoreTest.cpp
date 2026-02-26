@@ -1,3 +1,4 @@
+#include "http/listener.h"
 #include "steam/isteamnetworkingsockets.h"
 #include "steam/steamnetworkingtypes.h"
 #include "gmock/gmock.h"
@@ -11,4 +12,10 @@ public:
     MOCK_METHOD(bool, CloseConnection, ( HSteamNetConnection, int, const char *, bool), (override));
     MOCK_METHOD(bool, SetConnectionPollGroup, ( HSteamNetConnection, HSteamNetPollGroup ), (override));
     MOCK_METHOD(void, RunCallbacks, (), (override));
+};
+
+class MOCKListener : public http::Listener{
+public:
+
+
 };
