@@ -18,11 +18,11 @@
 namespace http{
 
 //bräuchten Halt spezifisch für unterschiedliche interfaces von Listenern
-void NetworkManager::init(){
+void NetworkManager::init( std::shared_ptr<ISteamNetworkinSocketsAdapter> SteamAdapter ){
 
     SteamNetworkingUtils()->SetGlobalCallback_SteamNetConnectionStatusChanged( sOnConnectionStatusChangedCallback );
 
-    m_pInterface = SteamNetworkingSockets(); 
+    m_pInterface = std::move(SteamAdapter);
 
     m_Core = std::make_unique<NetworkManagerCore>( m_pInterface, std::make_unique<ListenerFactory>(m_pInterface, sConnectionServedCallback) );
 

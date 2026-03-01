@@ -12,7 +12,6 @@
 #include "http/HTTPinitialization.h"
 #include "http/Request.h"
 #include "Datastrucutres/ThreadSaveQueue.h"
-#include "steam/isteamnetworkingsockets.h"
 #include "steam/steamnetworkingtypes.h"
 
 namespace http{
@@ -48,7 +47,7 @@ public:
     ThreadSaveQueue<Request>* getOutgoingQueue() override { return &m_OutgoingMessages; }
     ThreadSaveQueue<Error::ErrorValue<HTTPErrors>>* getErrorQueue() override { return &m_ErrorQueue; }
 public:
-    Listener(ISteamNetworkingSockets* interface, std::function<void(HSteamListenSocket, HSteamNetConnection)> ConnectionServedCallback);
+    Listener( std::shared_ptr<ISteamNetworkinSocketsAdapter> interface, std::function<void(HSteamListenSocket, HSteamNetConnection)> ConnectionServedCallback);
     Listener(const Listener& other) = delete;
     Listener(Listener&& other) = delete;
     ~Listener();
@@ -60,7 +59,7 @@ private:
     void pollIncMessages();
     void pollOutMessages();
 private:
-    ISteamNetworkingSockets* m_pInterface;
+    std::shared_ptr<ISteamNetworkinSocketsAdapter> m_pInterface;
     HSteamListenSocket m_Socket;
     HSteamNetPollGroup m_pollGroup;
 
@@ -86,12 +85,12 @@ public:
 
 class ListenerFactory : public IListenerFactory {
 public:
-    ListenerFactory(ISteamNetworkingSockets* pInterface, std::function<void(HSteamListenSocket, HSteamNetConnection)>  ConnectionServedCallback ) 
+    ListenerFactory( std::shared_ptr<ISteamNetworkinSocketsAdapter> pInterface, std::function<void(HSteamListenSocket, HSteamNetConnection)>  ConnectionServedCallback ) 
         : m_pInterface(pInterface), m_ConnectionServedCallback(ConnectionServedCallback){}
 
     std::unique_ptr<IListener> createListener() override { return std::make_unique<Listener>(m_pInterface, m_ConnectionServedCallback); }
 private:
-    ISteamNetworkingSockets* m_pInterface;
+    std::shared_ptr<ISteamNetworkinSocketsAdapter> m_pInterface;
     std::function<void(HSteamListenSocket, HSteamNetConnection)>  m_ConnectionServedCallback;
 };
 }

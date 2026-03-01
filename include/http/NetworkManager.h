@@ -59,7 +59,6 @@ struct ListenerInfo {
 
 
 
-
 class NetworkManagerCore {
 public:
     //können bestimmt public los werden
@@ -79,7 +78,7 @@ public:
     
     void callbackManager( SteamNetConnectionStatusChangedCallback_t *pInfo );
 public:
-    NetworkManagerCore( ISteamNetworkingSockets* interface, std::unique_ptr<IListenerFactory> listenerFactory );
+    NetworkManagerCore( std::shared_ptr<ISteamNetworkinSocketsAdapter> interface, std::unique_ptr<IListenerFactory> listenerFactory );
     NetworkManagerCore(const NetworkManagerCore& other) = delete;
     NetworkManagerCore(NetworkManagerCore&& other) = delete;
     ~NetworkManagerCore();
@@ -93,7 +92,7 @@ private:
     std::unordered_map<HListener, ListenerInfo> m_Listeners;
 
     u_int64_t m_ListenerHandlerIndex = HListener_Invalid;
-    ISteamNetworkingSockets* m_pInterface = nullptr;
+    std::shared_ptr<ISteamNetworkinSocketsAdapter> m_pInterface;
     std::unique_ptr<IListenerFactory> m_ListenerFactory;
 };
 
@@ -104,7 +103,7 @@ public:
         return instance;
     }
 
-    void init();
+    void init( std::shared_ptr<ISteamNetworkinSocketsAdapter> SteamAdapter );
     void kill();
     
     HListener createListener( const char* ListenerName );
@@ -122,7 +121,7 @@ public:
     static void sOnConnectionStatusChangedCallback( SteamNetConnectionStatusChangedCallback_t* pInfo ) { NetworkManager::Get().runCallbacks( pInfo ); } 
     static void sConnectionServedCallback( HSteamListenSocket socket, HSteamNetConnection connection ) { NetworkManager::Get().ConnectionServed( socket, connection ); }
 public:
-    ISteamNetworkingSockets* m_pInterface = nullptr;
+    std::shared_ptr<ISteamNetworkinSocketsAdapter> m_pInterface;
 private:
 
     void tick();

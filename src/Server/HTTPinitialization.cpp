@@ -2,6 +2,7 @@
 
 #include "http/NetworkManager.h"
 #include <filesystem>
+#include <memory>
 
 namespace http{
 
@@ -30,7 +31,7 @@ bool initHTTP(){
         return false;
     }
 
-    NetworkManager::Get().init();
+    NetworkManager::Get().init( std::make_shared<SteamNetworkingSocketsAdapter>( SteamNetworkingSockets() ) );
 
     isHTTPInitialized = true;
 

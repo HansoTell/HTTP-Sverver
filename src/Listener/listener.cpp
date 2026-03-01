@@ -1,7 +1,6 @@
 #include "http/listener.h"
 
 #include "http/HTTPinitialization.h"
-#include "steam/isteamnetworkingsockets.h"
 #include "steam/steamnetworkingtypes.h"
 
 #include <chrono>
@@ -12,7 +11,7 @@
 
 
 namespace http{
-    Listener::Listener(ISteamNetworkingSockets* interface, std::function<void(HSteamListenSocket, HSteamNetConnection)>  ConnectionServedCallback) 
+    Listener::Listener( std::shared_ptr<ISteamNetworkinSocketsAdapter> interface, std::function<void(HSteamListenSocket, HSteamNetConnection)>  ConnectionServedCallback) 
             : m_pInterface(interface), m_listening(false), m_running(true), m_ConnectionServedCallback(ConnectionServedCallback){
         assert(m_pInterface != nullptr);
         
