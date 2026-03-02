@@ -12,7 +12,7 @@
 
 namespace http{
 
-NetworkManagerCore::NetworkManagerCore( ISteamNetworkingSockets* interface, std::unique_ptr<IListenerFactory>listenerFactory ) 
+NetworkManagerCore::NetworkManagerCore( std::shared_ptr<ISteamNetworkinSocketsAdapter> interface, std::unique_ptr<IListenerFactory>listenerFactory ) 
     : m_pInterface(interface), m_ListenerHandlerIndex(1), m_ListenerFactory(std::move(listenerFactory)){}
 
 NetworkManagerCore::~NetworkManagerCore() {}
