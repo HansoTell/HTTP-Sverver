@@ -2,7 +2,6 @@
 #include "http/HTTPinitialization.h"
 #include "http/NetworkManager.h"
 #include "http/listener.h"
-#include "steam/steamnetworkingtypes.h"
 #include "gmock/gmock.h"
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
@@ -10,42 +9,13 @@
 #include <sys/types.h>
 #include <utility>
 
+#include "mocks/SteamNetworkingSocketsAdapterMock.h"
+#include "mocks/ListenerMock.h"
 
 using ::testing::Return;
 using :: testing::ByMove;
 using ::testing::_;
 
-
-class MOCKSteamNetworkingSockets : public http::ISteamNetworkinSocketsAdapter  { 
-public:
-    MOCK_METHOD(EResult, AcceptConnection, (HSteamNetConnection), (override));
-    MOCK_METHOD(bool, CloseConnection, ( HSteamNetConnection, int, const char *, bool), (override));
-    MOCK_METHOD(bool, SetConnectionPollGroup, ( HSteamNetConnection, HSteamNetPollGroup ), (override));
-    MOCK_METHOD(void, RunCallbacks, (), (override));
-
-    MOCK_METHOD(HSteamNetPollGroup, CreatePollGroup, (), (override));
-    MOCK_METHOD(HSteamListenSocket, CreateListenSocketIP, (const SteamNetworkingIPAddr&, int, const SteamNetworkingConfigValue_t*), (override));
-    MOCK_METHOD(int, ReceiveMessagesOnPollGroup, (HSteamNetPollGroup, SteamNetworkingMessage_t **, int), (override));
-    MOCK_METHOD(EResult, SendMessageToConnection, (HSteamNetConnection, const void*, uint32, int, int64*), (override));
-    MOCK_METHOD(bool, CloseListenSocket, (HSteamListenSocket hSocket), (override));
-    MOCK_METHOD(bool, DestroyPollGroup, (HSteamNetPollGroup), (override));
-};
-
-class MOCKListener : public http::IListener{
-public:
-    MOCK_METHOD(http::Result<http::SocketHandlers>, initSocket, (u_int16_t), (override));
-    MOCK_METHOD(void, startListening, (), (override));
-    MOCK_METHOD(void, stopListening, (), (override));
-
-    MOCK_METHOD(http::ThreadSaveQueue<Error::ErrorValue<http::HTTPErrors>>*, getErrorQueue, (), (override) );
-    MOCK_METHOD(http::ThreadSaveQueue<http::Request>*, getReceivedQueue, (), (override));
-    MOCK_METHOD(http::ThreadSaveQueue<http::Request>*, getOutgoingQueue, (), (override));
-};
-
-class MOCKListenerFactory : public http::IListenerFactory {
-public:
-    MOCK_METHOD(std::unique_ptr<http::IListener>, createListener, (), (override));
-};
 
 class NetworkManagerCoreTest : public ::testing::Test {
 protected:
@@ -95,7 +65,7 @@ TEST_F(NetworkManagerCoreTest, StartListening_initSocketFails){
 
     HListener handler = manager->createListener("Test");
 
-    http::Result<http::SocketHandlers> errResult = MAKE_ERROR(http::HTTPErrors::eInvalidSocket, "Init failed");
+    http::Result<http::SocketHandlers> errResult = MAKE_ERROR(http::HTTPErrors::eSocketInitializationFailed, "Init failed");
 
     EXPECT_CALL(*pListener, initSocket(8080)).WillOnce(Return(errResult));
 
@@ -107,11 +77,11 @@ TEST_F(NetworkManagerCoreTest, StartListening_initSocketFails){
 }
 
 TEST_F(NetworkManagerCoreTest, StartListening_invalidListener){
-
     auto result = manager->startListening(13, 8080);
     EXPECT_TRUE(result.isErr());
     EXPECT_EQ(result.error().ErrorCode, http::HTTPErrors::eInvalidListener);
 }
+
 
 
 
