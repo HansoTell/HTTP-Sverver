@@ -83,8 +83,6 @@ Result<void> NetworkManagerCore::stopListening( HListener listener ){
     if( info.m_Socket == k_HSteamListenSocket_Invalid )
         return MAKE_ERROR(HTTPErrors::eInvalidSocket, "Not currently Listening (Double Call?)");
 
-    info.m_Listener->stopListening();
-
     assert(m_SocketClientsMap.find(info.m_Socket) != m_SocketClientsMap.end());
 
     auto& allConnections = m_SocketClientsMap.at(info.m_Socket).m_AllConnections;
@@ -100,7 +98,6 @@ Result<void> NetworkManagerCore::stopListening( HListener listener ){
     m_SocketClientsMap.erase(info.m_Socket);
 
     info.m_Socket = k_HSteamListenSocket_Invalid;
-
 
     info.m_Listener->stopListening();
 

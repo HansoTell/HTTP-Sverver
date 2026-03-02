@@ -33,6 +33,25 @@ protected:
     void TearDown() override {
         delete manager;
     }
+
+    HListener setupListeningState(u_int16_t port, MOCKListener*& outListener){
+        auto mockListener = std::make_unique<MOCKListener>();
+        outListener = mockListener.get();
+
+        EXPECT_CALL(*mockFactory, createListener()).WillOnce(Return(ByMove(std::move(mockListener))));
+        HListener handler = manager->createListener("Test");
+
+        http::SocketHandlers fakeHandlers;
+        fakeHandlers.m_Socket = 12345;
+        fakeHandlers.m_PollGroup = 55;
+
+        EXPECT_CALL(*outListener, initSocket(port)).WillOnce(Return(http::Result<http::SocketHandlers>(fakeHandlers)));
+        EXPECT_CALL(*outListener, startListening()).Times(1);
+
+        manager->startListening(handler, port);
+
+        return handler;
+    }
 };
 
 TEST_F(NetworkManagerCoreTest, StartListening_Success){
@@ -81,6 +100,27 @@ TEST_F(NetworkManagerCoreTest, StartListening_invalidListener){
     EXPECT_TRUE(result.isErr());
     EXPECT_EQ(result.error().ErrorCode, http::HTTPErrors::eInvalidListener);
 }
+
+//stopListening
+TEST_F(NetworkManagerCoreTest, StopListening_Success){
+    MOCKListener* pListener = nullptr;
+    HListener handler = setupListeningState(8080, pListener);
+
+    #define CONNECTIONS_NUM 3
+    for(u_int32_t i = 0; i < CONNECTIONS_NUM; i++){
+        manager->m_SocketClientsMap.at(12345).m_AllConnections.push_back( { i, false } );
+    }
+    manager->m_SocketClientsMap.at(12345).m_AllConnections.push_back( { 222, true } );
+
+    EXPECT_CALL(*mockSteam, CloseConnection(_, 1, nullptr, false)).Times(CONNECTIONS_NUM) ;
+    //Falls darin noch was passiert hier testen
+
+    EXPECT_CALL(*pListener, stopListening()).Times(1);
+    manager->stopListening(handler);
+
+    EXPECT_TRUE(manager->m_SocketClientsMap.empty());
+}
+
 
 
 
