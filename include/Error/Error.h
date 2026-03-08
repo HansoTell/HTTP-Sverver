@@ -1,14 +1,14 @@
 #pragma once
 
+#include <functional>
 #include <string_view>
 #include <type_traits>
 #include <variant>
 #include <optional>
 #include <iostream>
 
-#define CURRENT_LOCATION ::Error::SourceLocation{__FILE__, __func__, __LINE__}
+#define CURRENT_LOCATION ::Error::SourceLocation{ __FILE__, __func__, __LINE__ }
 
-//Error message ist noch schei0e sollte man eher so printf type shit machen weil momentan ist das kaka das man keine zahlen und so eingeben kann
 namespace Error {
 
     struct SourceLocation {
@@ -18,8 +18,6 @@ namespace Error {
     };
 
     inline std::ostream& operator<<(std::ostream& os, const SourceLocation& location){ return os << location.File << ":" << location.line << " " << location.Function; }
-
-
 
     template<typename E> 
     struct ErrorValue
@@ -41,10 +39,11 @@ namespace Error {
     };
 
     template<typename E>
-    inline std::ostream& operator<<(std::ostream& os, const ErrorValue<E>& errValue) {
+    inline std::ostream& operator<<(std::ostream& os, const ErrorValue<E>& errValue) 
+    {
         return os << "ErrorCode: " << errValue.ErrorCode << "\n" <<
                         "Message: " << errValue.Message.data() << "\n" << 
-                        "Location: " << errValue.Message << "\n"; 
+                        "Location: " << errValue.Location << "\n"; 
     }
 
 
@@ -53,10 +52,11 @@ namespace Error {
         return { code, msg, CURRENT_LOCATION };
     }
 
-    template<typename value_Type, typename E>
+    template<typename T, typename E>
     class Result {
     public:
         using ErrorType = ErrorValue<E>;
+        using value_Type = std::conditional_t<std::is_reference_v<T>, std::reference_wrapper<std::remove_reference_t<T>>, T>;
     private:
         std::variant<value_Type, ErrorType> m_data;
     public: 
@@ -66,12 +66,14 @@ namespace Error {
         Result(ErrorType&& error) : m_data(std::move(error)) {}
 
         bool isOK() const { return std::holds_alternative<value_Type>(m_data); }
-        bool isErr() const {return !isOK(); }
+        bool isErr() const { return !isOK(); }
 
         explicit operator bool() const { return isOK(); }
 
-        const value_Type& value() { return std::get<value_Type> (m_data); }
-        const ErrorType& error() { return std::get<ErrorType> (m_data); }
+        const value_Type& value() const { 
+            return std::get<value_Type> (m_data); 
+        }
+        const ErrorType& error() const { return std::get<ErrorType> (m_data); }
     };
 
 
@@ -93,5 +95,4 @@ namespace Error {
 
         const ErrorType& error() const { return m_error.value(); }
     };
-
-}
+} 

@@ -1,5 +1,6 @@
 #include <http/HTTPinitialization.h>
 
+#include "Logger/Logger.h"
 #include "http/NetworkManager.h"
 #include <filesystem>
 #include <memory>
@@ -21,8 +22,7 @@ bool initHTTP(){
     //was wenn schon existiert?
     std::filesystem::create_directory(logDir);
 
-    g_Logger = std::make_unique<Log::Logger>(logDir/"app.log");
-    g_Logger->setLogLevel( LOGLEVEL );
+    CREATE_LOGGER(logDir/"app.log");
 
     //iwie so message am besten auch noch zurück geben oder so
     char a[1024]; 
@@ -39,7 +39,7 @@ bool initHTTP(){
 }
 
 bool HTTP_Kill(){
-    g_Logger.reset(nullptr);
+    DESTROY_LOGGER();
 
     //Alles runter fahren falls wir noch mehr brauchen
     GameNetworkingSockets_Kill();

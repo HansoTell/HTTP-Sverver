@@ -1,5 +1,6 @@
 #include "http/listener.h"
 
+#include "Logger/Logger.h"
 #include "http/HTTPinitialization.h"
 #include "steam/steamnetworkingtypes.h"
 
