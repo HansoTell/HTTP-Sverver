@@ -128,7 +128,7 @@ private:
     void run();
 
     template<typename Funktion>
-    auto executeFunktion(Funktion&& func) -> decltype(func());
+    auto executeFunktion(Funktion&& func) ->std::invoke_result_t<Funktion>;
 
     void notifyFunktionCall();
 private:

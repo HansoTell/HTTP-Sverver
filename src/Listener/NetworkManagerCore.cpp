@@ -17,6 +17,12 @@ NetworkManagerCore::NetworkManagerCore( std::shared_ptr<ISteamNetworkinSocketsAd
 
 NetworkManagerCore::~NetworkManagerCore() {}
 
+Result<void> NetworkManagerCore::isValidListenerHandler( HListener listenerHandler ) const {
+    //TODO: implementieren!!
+    return {};
+}
+
+
 HListener NetworkManagerCore::createListener( const char* ListenerName ){
 
     assert(m_Listeners.find(m_ListenerHandlerIndex) == m_Listeners.end());
@@ -53,7 +59,7 @@ Result<void> NetworkManagerCore::startListening( HListener listener, u_int16_t p
     ListenerInfo& info = m_Listeners.at(listener);
 
     if( info.m_Socket != k_HSteamListenSocket_Invalid || info.m_Socket != k_HSteamNetPollGroup_Invalid )
-        return MAKE_ERROR(HTTPErrors::eInvalidSocket, "Already Listening on this Scoket -> Socket/Pollgroup Valid" );
+        return MAKE_ERROR(HTTPErrors::eInvalidCall, "Already Listening on this Scoket -> Socket/Pollgroup Valid" );
 
     auto result = info.m_Listener->initSocket( port );
     if( result.isErr() )

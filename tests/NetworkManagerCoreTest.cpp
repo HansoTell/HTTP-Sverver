@@ -101,6 +101,21 @@ TEST_F(NetworkManagerCoreTest, StartListening_invalidListener){
     EXPECT_EQ(result.error().ErrorCode, http::HTTPErrors::eInvalidListener);
 }
 
+TEST_F(NetworkManagerCoreTest, StartListening_DoubleCall){
+    MOCKListener* pListener = nullptr;
+    HListener handler = setupListeningState(8080, pListener);
+
+    //muss hier andere zahl weil soll ja genau einmal aufgerufen werden insegsammt...
+    EXPECT_CALL(*pListener, initSocket(_)).Times(0);
+    EXPECT_CALL(*pListener, startListening()).Times(0);
+
+    auto result = manager->startListening(handler, 9000);
+
+    ASSERT_TRUE(result.isErr());
+    EXPECT_EQ(result.error().ErrorCode, http::HTTPErrors::eInvalidCall);
+}
+
+
 //stopListening
 TEST_F(NetworkManagerCoreTest, StopListening_Success){
     MOCKListener* pListener = nullptr;

@@ -13,6 +13,7 @@
 #include <sys/mman.h>
 #include <sys/types.h>
 #include <thread>
+#include <type_traits>
 #include <utility>
 
 namespace http{
@@ -132,15 +133,15 @@ void NetworkManager::notifyFunktionCall() {
 }
 
 template<typename Funktion>
-auto NetworkManager::executeFunktion(Funktion&& func) -> decltype(func()){
-    using returnVal = decltype(func());
+auto NetworkManager::executeFunktion(Funktion&& func) -> std::invoke_result_t<Funktion>{
+    using returnVal = std::invoke_result_t<Funktion>;
 
-    std::promise<returnVal> promisedVal;
+    auto prommisedVal = std::make_shared<std::promise<returnVal>>();
 
-    std::future<returnVal> future = promisedVal.get_future();
+    std::future<returnVal> future = prommisedVal->get_future();
 
-    m_FunctionCalls.push([func = std::forward<Funktion>(func), promisedVal = std::move(promisedVal)]() mutable {
-        promisedVal.set_value(func());
+    m_FunctionCalls.push([func = std::forward<Funktion>(func), prommisedVal]() mutable {
+        prommisedVal->set_value(func());
     });
     
     return future.get();
