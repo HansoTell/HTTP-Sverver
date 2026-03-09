@@ -27,7 +27,7 @@ protected:
     http::NetworkManagerCore* manager;
      
     void SetUp() override {
-        CREATE_LOGGER("Logs/NetworkmanagerCoreTests.log");
+        CREATE_LOGGER("NetworkmanagerCoreTests.log");
         SET_LOG_LEVEL(Log::LogLevel::ERROR);
 
         mockFactory = std::make_unique<MOCKListenerFactory>();

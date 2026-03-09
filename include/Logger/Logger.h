@@ -112,7 +112,7 @@ namespace Log{
         
     public:
         AsyncFileWriter( std::string file ) : m_logPath(std::move(file)){
-            m_logFile.open(file, std::ios::app);
+            m_logFile.open(m_logPath, std::ios::app);
             if(!m_logFile.is_open())
                 std::cerr << "Failed to open Log file" << "\n";
         }
