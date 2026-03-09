@@ -112,23 +112,28 @@ Result<void> NetworkManagerCore::stopListening( HListener listener ){
     return {};
 }
 
-
-template<typename T>
-Result<ThreadSaveQueue<T>*> NetworkManagerCore::getQueue( HListener listener, QueueType queueType ){
-    
+Result<ThreadSaveQueue<Request>*> NetworkManagerCore::getQueue( HListener listener, QueueType queueType){
     if(auto err = isValidListenerHandler(listener); err.isErr())
-        return err;
+        return MAKE_ERROR(err.error().ErrorCode, err.error().Message);
 
     auto& pListener = m_Listeners.at(listener); 
     switch ( queueType ) 
     {
-        case ERROR:
-            return pListener.m_Listener->getErrorQueue();
         case RECEIVED:
             return pListener.m_Listener->getReceivedQueue();
         case OUTGOING:
             return pListener.m_Listener->getOutgoingQueue();
     }
+}
+
+Result<ThreadSaveQueue<Error::ErrorValue<HTTPErrors>>*> NetworkManagerCore::getErrorQueue( HListener listener )
+{
+    if(auto err = isValidListenerHandler(listener); err.isErr())
+        return MAKE_ERROR(err.error().ErrorCode, err.error().Message);
+
+    auto& pListener = m_Listeners.at(listener); 
+
+    return pListener.m_Listener->getErrorQueue();
 }
 
 void NetworkManagerCore::ConnectionServed( HSteamListenSocket socket, HSteamNetConnection connection ){

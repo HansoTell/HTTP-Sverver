@@ -1,6 +1,7 @@
 #pragma once
 
 #include <functional>
+#include <future>
 #include <memory>
 #include <steam/steamnetworkingsockets.h>
 #include <steam/isteamnetworkingutils.h>
@@ -27,7 +28,7 @@ namespace http{
 #define HListener_Invalid 0
 
 enum QueueType {
-    ERROR = 0, RECEIVED = 1, OUTGOING = 2
+    RECEIVED = 0, OUTGOING = 1
 };
 
 struct Connections{
@@ -61,7 +62,6 @@ struct ListenerInfo {
 
 class NetworkManagerCore {
 public:
-    //können bestimmt public los werden
     std::unordered_map<HSteamListenSocket, SocketInfo> m_SocketClientsMap;
 public:
     HListener createListener( const char* ListenerName );
@@ -69,8 +69,8 @@ public:
 
     Result<void> startListening( HListener listener, u_int16_t port );
     Result<void> stopListening( HListener listener );
-    template<typename T>
-    Result<ThreadSaveQueue<T>*> getQueue( HListener listener, QueueType queuetype);
+    Result<ThreadSaveQueue<Request>*> getQueue( HListener listener, QueueType queueType);
+    Result<ThreadSaveQueue<Error::ErrorValue<HTTPErrors>>*> getErrorQueue( HListener listener ); 
     void ConnectionServed( HSteamListenSocket socket , HSteamNetConnection connection );
 
     void pollConnectionChanges();
@@ -111,8 +111,8 @@ public:
 
     Result<void> startListening( HListener listener, u_int16_t port);
     Result<void> stopListening( HListener listener );
-    template<typename T>
-    Result<ThreadSaveQueue<T>*> getQueue( HListener listener, QueueType queuetype);
+    Result<ThreadSaveQueue<Request>*> getQueue( HListener listener, QueueType queueType);
+    Result<ThreadSaveQueue<Error::ErrorValue<HTTPErrors>>*> getErrorQueue( HListener listener );
     void ConnectionServed( HSteamListenSocket socket, HSteamNetConnection connection );
 
     void runCallbacks( SteamNetConnectionStatusChangedCallback_t* pInfo ) { m_Core->callbackManager( pInfo ); }
@@ -128,7 +128,20 @@ private:
     void run();
 
     template<typename Funktion>
-    auto executeFunktion(Funktion&& func) ->std::invoke_result_t<Funktion>;
+    auto executeFunktion(Funktion&& func) ->std::invoke_result_t<Funktion>{
+
+        using returnVal = std::invoke_result_t<Funktion>;
+
+        auto prommisedVal = std::make_shared<std::promise<returnVal>>();
+
+        std::future<returnVal> future = prommisedVal->get_future();
+
+        m_FunctionCalls.push([func = std::forward<Funktion>(func), prommisedVal]() mutable {
+            prommisedVal->set_value(func());
+        });
+        
+        return future.get();
+    }
 
     void notifyFunktionCall();
 private:

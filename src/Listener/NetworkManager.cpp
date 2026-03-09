@@ -7,13 +7,11 @@
 #include <cassert>
 #include <chrono>
 #include <cstring>
-#include <future>
 #include <memory>
 #include <mutex>
 #include <sys/mman.h>
 #include <sys/types.h>
 #include <thread>
-#include <type_traits>
 #include <utility>
 
 namespace http{
@@ -76,13 +74,21 @@ Result<void> NetworkManager::stopListening( HListener listener ){
     });
 }
 
-//überlegen result wegen listener fehler der returende werden kann
-template<typename T>
-Result<ThreadSaveQueue<T>*> NetworkManager::getQueue( HListener listener, QueueType queueType ){
+
+Result<ThreadSaveQueue<Request>*> NetworkManager::getQueue( HListener listener, QueueType queueType){
     notifyFunktionCall();
 
     return executeFunktion([=](){
-        return this->m_Core->getQueue<T>( listener, queueType );
+        return this->m_Core->getQueue( listener, queueType );
+    });
+}
+
+
+Result<ThreadSaveQueue<Error::ErrorValue<HTTPErrors>>*> NetworkManager::getErrorQueue( HListener listener ){
+    notifyFunktionCall();
+
+    return executeFunktion([=](){
+        return this->m_Core->getErrorQueue( listener );
     });
 }
 
@@ -130,20 +136,5 @@ void NetworkManager::notifyFunktionCall() {
     std::lock_guard<std::mutex> _lock(m_ManagerMutex);
     m_Busy=true;
     m_callbackCV.notify_one();
-}
-
-template<typename Funktion>
-auto NetworkManager::executeFunktion(Funktion&& func) -> std::invoke_result_t<Funktion>{
-    using returnVal = std::invoke_result_t<Funktion>;
-
-    auto prommisedVal = std::make_shared<std::promise<returnVal>>();
-
-    std::future<returnVal> future = prommisedVal->get_future();
-
-    m_FunctionCalls.push([func = std::forward<Funktion>(func), prommisedVal]() mutable {
-        prommisedVal->set_value(func());
-    });
-    
-    return future.get();
 }
 }
