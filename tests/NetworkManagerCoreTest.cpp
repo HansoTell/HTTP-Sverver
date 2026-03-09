@@ -1,4 +1,5 @@
 #include "Error/Errorcodes.h"
+#include "Logger/Logger.h"
 #include "http/HTTPinitialization.h"
 #include "http/NetworkManager.h"
 #include "http/listener.h"
@@ -20,25 +21,34 @@ using ::testing::_;
 class NetworkManagerCoreTest : public ::testing::Test {
 protected:
     std::shared_ptr<MOCKSteamNetworkingSockets> mockSteam;
+    MOCKSteamNetworkingSockets* pMockSteam;
     std::unique_ptr<MOCKListenerFactory> mockFactory;
+    MOCKListenerFactory* pMockFactory;
     http::NetworkManagerCore* manager;
      
     void SetUp() override {
+        CREATE_LOGGER("Logs/NetworkmanagerCoreTests.log");
+        SET_LOG_LEVEL(Log::LogLevel::ERROR);
+
         mockFactory = std::make_unique<MOCKListenerFactory>();
+        pMockFactory = mockFactory.get();
         mockSteam = std::make_shared<MOCKSteamNetworkingSockets>();
+        pMockSteam = mockSteam.get();
+
 
         manager = new http::NetworkManagerCore( mockSteam, std::move(mockFactory) );
     }
 
     void TearDown() override {
         delete manager;
+        DESTROY_LOGGER();
     }
 
     HListener setupListeningState(u_int16_t port, MOCKListener*& outListener){
         auto mockListener = std::make_unique<MOCKListener>();
         outListener = mockListener.get();
 
-        EXPECT_CALL(*mockFactory, createListener()).WillOnce(Return(ByMove(std::move(mockListener))));
+        EXPECT_CALL(*pMockFactory, createListener()).WillOnce(Return(ByMove(std::move(mockListener))));
         HListener handler = manager->createListener("Test");
 
         http::SocketHandlers fakeHandlers;
@@ -58,7 +68,7 @@ TEST_F(NetworkManagerCoreTest, StartListening_Success){
     auto mockListener = std::make_unique<MOCKListener>();
     auto* pListener = mockListener.get();
 
-    EXPECT_CALL(*mockFactory, createListener()).WillOnce(Return(ByMove(std::move(mockListener))));
+    EXPECT_CALL(*pMockFactory, createListener()).WillOnce(Return(ByMove(std::move(mockListener))));
 
     HListener handler = manager->createListener("Test");
 
@@ -73,14 +83,14 @@ TEST_F(NetworkManagerCoreTest, StartListening_Success){
 
 
     EXPECT_TRUE(result.isOK());
-    EXPECT_TRUE(manager->m_SocketClientsMap.find(1234)!= manager->m_SocketClientsMap.end());
+    EXPECT_TRUE(manager->m_SocketClientsMap.find(12345)!= manager->m_SocketClientsMap.end());
 }
 
 TEST_F(NetworkManagerCoreTest, StartListening_initSocketFails){
     auto mockListener = std::make_unique<MOCKListener>();
     auto* pListener = mockListener.get();
 
-    EXPECT_CALL(*mockFactory, createListener()).WillOnce(Return(ByMove(std::move(mockListener))));
+    EXPECT_CALL(*pMockFactory, createListener()).WillOnce(Return(ByMove(std::move(mockListener))));
 
     HListener handler = manager->createListener("Test");
 
@@ -127,7 +137,7 @@ TEST_F(NetworkManagerCoreTest, StopListening_Success){
     }
     manager->m_SocketClientsMap.at(12345).m_AllConnections.push_back( { 222, true } );
 
-    EXPECT_CALL(*mockSteam, CloseConnection(_, 1, nullptr, false)).Times(CONNECTIONS_NUM) ;
+    EXPECT_CALL(*pMockSteam, CloseConnection(_, 1, nullptr, false)).Times(CONNECTIONS_NUM) ;
     //Falls darin noch was passiert hier testen
 
     EXPECT_CALL(*pListener, stopListening()).Times(1);
