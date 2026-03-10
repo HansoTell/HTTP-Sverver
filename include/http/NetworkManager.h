@@ -36,23 +36,18 @@ struct Connections{
     bool isServed = false;
 };
 
-//auch die idee ist halt doof weil in listener würden wir ja shcon gerne socket verwalten weil von listner wissen wir nicht ob aktiv oder nicht
-//und haben halt niergendwo wo wir wirklich socket haben
-//In AllClients nicht mehr den vector sondern SocketInfo speichern
 struct SocketInfo{
-    std::vector<Connections> m_AllConnections = std::vector<Connections>(128);
+    std::vector<Connections> m_AllConnections = std::vector<Connections>();
     HSteamNetPollGroup m_PollGroup = k_HSteamNetPollGroup_Invalid;
 
 
-    SocketInfo(HSteamNetPollGroup pollGroup) : m_PollGroup(pollGroup){}
+    SocketInfo(HSteamNetPollGroup pollGroup) : m_PollGroup(pollGroup){ m_AllConnections.reserve(128); }
 };
 
 struct ListenerInfo {
     std::unique_ptr<IListener> m_Listener = nullptr;
     char ListenerName[512] = "";
     HSteamListenSocket m_Socket = k_HSteamListenSocket_Invalid;
-    //das dann halt hier entfernen auch wenns weh tut
-    HSteamNetPollGroup m_PollGroup = k_HSteamNetPollGroup_Invalid;
 
     ListenerInfo( std::unique_ptr<IListener> listener) 
         : m_Listener(std::move(listener)) {} 

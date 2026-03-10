@@ -18,7 +18,9 @@ NetworkManagerCore::NetworkManagerCore( std::shared_ptr<ISteamNetworkinSocketsAd
 NetworkManagerCore::~NetworkManagerCore() {}
 
 Result<void> NetworkManagerCore::isValidListenerHandler( HListener listenerHandler ) const {
-    //TODO: implementieren!!
+    if( m_Listeners.find(listenerHandler) == m_Listeners.end() )
+        return MAKE_ERROR(HTTPErrors::eInvalidListener, "Listener Handler not found in Listeners Map");
+
     return {};
 }
 
@@ -45,6 +47,8 @@ Result<void> NetworkManagerCore::DestroyListener( HListener listener ){
     if(auto err = isValidListenerHandler(listener); err.isErr())
         return err;
 
+    stopListening( listener );
+
     m_Listeners.at(listener).m_Listener.reset(nullptr);
     m_Listeners.erase(listener);
 
@@ -69,7 +73,7 @@ Result<void> NetworkManagerCore::startListening( HListener listener, u_int16_t p
 
     info.m_Socket = SocketHandlers.m_Socket;
 
-    m_SocketClientsMap.emplace(info.m_Socket, SocketInfo(info.m_PollGroup) );
+    m_SocketClientsMap.emplace(info.m_Socket, SocketInfo(SocketHandlers.m_PollGroup) );
 
     info.m_Listener->startListening(); 
     
@@ -85,9 +89,8 @@ Result<void> NetworkManagerCore::stopListening( HListener listener ){
 
     ListenerInfo& info = m_Listeners.at(listener);
 
-
     if( info.m_Socket == k_HSteamListenSocket_Invalid )
-        return MAKE_ERROR(HTTPErrors::eInvalidSocket, "Not currently Listening (Double Call?)");
+        return MAKE_ERROR(HTTPErrors::eInvalidCall, "Not currently Listening (Double Call?)");
 
     assert(m_SocketClientsMap.find(info.m_Socket) != m_SocketClientsMap.end());
 
