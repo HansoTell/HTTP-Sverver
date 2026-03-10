@@ -115,7 +115,7 @@ Result<void> NetworkManagerCore::stopListening( HListener listener ){
     return {};
 }
 
-Result<ThreadSaveQueue<Request>*> NetworkManagerCore::getQueue( HListener listener, QueueType queueType){
+Result<ThreadSaveQueue<Request>*> NetworkManagerCore::getQueue( HListener listener, QueueType queueType ){
     if(auto err = isValidListenerHandler(listener); err.isErr())
         return MAKE_ERROR(err.error().ErrorCode, err.error().Message);
 
