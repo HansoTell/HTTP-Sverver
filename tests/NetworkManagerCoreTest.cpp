@@ -108,12 +108,14 @@ TEST_F(NetworkManagerCoreTest, DestroyListenerInListeningState){
     MOCKListener* pListener = nullptr;
     HListener handler = setupListeningState(8080, pListener);
 
+    EXPECT_CALL(*pListener, stopListening()).Times(1);
     auto res = manager->DestroyListener(handler);
 
     //m_Listener scheiß??
     EXPECT_TRUE(res.isOK());
 }
 
+//Start Listening
 TEST_F(NetworkManagerCoreTest, StartListening_Success){
     MOCKListener* pListener = nullptr;
 
@@ -220,3 +222,40 @@ TEST_F(NetworkManagerCoreTest, StopListening_Success){
 
     EXPECT_TRUE(manager->m_SocketClientsMap.empty());
 }
+
+TEST_F(NetworkManagerCoreTest, StopListening_DoubleCall){
+    MOCKListener* pListener = nullptr;
+    HListener handler = setupListeningState(8080, pListener);
+    EXPECT_CALL(*pMockSteam, CloseConnection(_, 1, nullptr, false)).Times(0);
+    EXPECT_CALL(*pListener, stopListening()).Times(1);
+    manager->stopListening(handler);
+
+    EXPECT_CALL(*pListener, stopListening()).Times(0);
+
+    auto res = manager->stopListening(handler);
+
+    ASSERT_TRUE(res.isErr());
+    EXPECT_EQ(res.error().ErrorCode, http::HTTPErrors::eInvalidCall);
+}
+
+TEST_F(NetworkManagerCoreTest, StopListening_RestartListening){
+    MOCKListener* pListener = nullptr;
+    HListener handler = setupListeningState(8080, pListener);
+    EXPECT_CALL(*pListener, stopListening()).Times(1);
+    manager->stopListening(handler);
+
+    http::SocketHandlers fakeHandlers;
+    fakeHandlers.m_Socket = 15;
+    fakeHandlers.m_PollGroup = 55;
+
+    EXPECT_CALL(*pListener, initSocket(8080)).WillOnce(Return(http::Result<http::SocketHandlers>(fakeHandlers)));
+    EXPECT_CALL(*pListener, startListening()).Times(1);
+
+    auto res = manager->startListening(handler, 8080);
+
+    ASSERT_TRUE(res.isOK());
+    EXPECT_TRUE(manager->m_SocketClientsMap.find(15)!= manager->m_SocketClientsMap.end());
+
+    EXPECT_EQ(manager->m_SocketClientsMap.at(15).m_AllConnections.size(), 0);
+}
+
