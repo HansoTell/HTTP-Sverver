@@ -54,6 +54,26 @@ struct ListenerInfo {
 };
 
 
+//wrapper um maps bauen für test zugriff und allgemeinen zugriff
+//größtes problem können kein push back mehr machen... -> also könnten methode machen die callback aufruft mit connecting so das connected halt...
+class INetworkManagerCore {
+public:
+    ~INetworkManagerCore() = default;
+    virtual HListener createListener( const char* ListenerName ) = 0;
+    virtual Result<void> DestroyListener( HListener listener ) = 0;
+    virtual Result<void> startListening( HListener listener, u_int64_t port ) = 0;
+    virtual Result<void> stopListening( HListener listener ) = 0;
+    virtual Result<ThreadSaveQueue<Request>*> getQueue( HListener listener, QueueType queueType) = 0;
+    virtual Result<ThreadSaveQueue<Error::ErrorValue<HTTPErrors>>*> getErrorQueue( HListener listener ) = 0; 
+    virtual void ConnectionServed( HSteamListenSocket socket , HSteamNetConnection connection ) = 0;
+    virtual void pollConnectionChanges() = 0;
+    virtual void pollFunctionCalls( ThreadSaveQueue<std::function<void()>>* functionQueue ) = 0;
+    virtual void callbackManager( SteamNetConnectionStatusChangedCallback_t *pInfo ) = 0;
+    virtual const std::unordered_map<HSteamListenSocket, SocketInfo> getSocketClientsMap() const = 0; 
+    virtual const std::unordered_map<HListener, ListenerInfo> getListenerMap() const= 0;
+};
+
+
 
 class NetworkManagerCore {
 public:
@@ -66,6 +86,9 @@ public:
     Result<void> stopListening( HListener listener );
     Result<ThreadSaveQueue<Request>*> getQueue( HListener listener, QueueType queueType);
     Result<ThreadSaveQueue<Error::ErrorValue<HTTPErrors>>*> getErrorQueue( HListener listener ); 
+
+    const auto getSocketClientsMap() const { return m_SocketClientsMap; }
+    const auto getListenerMap() const { return m_Listeners; }
     void ConnectionServed( HSteamListenSocket socket , HSteamNetConnection connection );
 
     void pollConnectionChanges();
