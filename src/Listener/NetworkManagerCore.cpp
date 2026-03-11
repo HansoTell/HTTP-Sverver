@@ -6,13 +6,24 @@
 #include "steam/steamnetworkingtypes.h"
 #include <algorithm>
 #include <cassert>
+#include <memory>
 #include <sys/types.h>
+#include <utility>
 
 namespace http{
 
-NetworkManagerCore::NetworkManagerCore( ISteamNetworkingSockets* interface ) : m_pInterface(interface), m_ListenerHandlerIndex(1){}
+NetworkManagerCore::NetworkManagerCore( std::shared_ptr<ISteamNetworkinSocketsAdapter> interface, std::unique_ptr<IListenerFactory>listenerFactory ) 
+    : m_pInterface(interface), m_ListenerHandlerIndex(1), m_ListenerFactory(std::move(listenerFactory)){}
 
 NetworkManagerCore::~NetworkManagerCore() {}
+
+Result<void> NetworkManagerCore::isValidListenerHandler( HListener listenerHandler ) const {
+    if( m_Listeners.find(listenerHandler) == m_Listeners.end() )
+        return MAKE_ERROR(HTTPErrors::eInvalidListener, "Listener Handler not found in Listeners Map");
+
+    return {};
+}
+
 
 HListener NetworkManagerCore::createListener( const char* ListenerName ){
 
@@ -20,7 +31,9 @@ HListener NetworkManagerCore::createListener( const char* ListenerName ){
 
     HListener handler = m_ListenerHandlerIndex;
 
-    m_Listeners.emplace(handler, ListenerInfo(std::make_unique<Listener>(m_pInterface, NetworkManager::sConnectionServedCallback)) );
+    std::unique_ptr<IListener> listener = m_ListenerFactory->createListener();
+
+    m_Listeners.emplace(handler, ListenerInfo( std::move(listener )));
     if( ListenerName )
         strncpy(m_Listeners.at(handler).ListenerName, ListenerName, 512);
 
@@ -33,6 +46,8 @@ Result<void> NetworkManagerCore::DestroyListener( HListener listener ){
 
     if(auto err = isValidListenerHandler(listener); err.isErr())
         return err;
+
+    stopListening( listener );
 
     m_Listeners.at(listener).m_Listener.reset(nullptr);
     m_Listeners.erase(listener);
@@ -48,7 +63,7 @@ Result<void> NetworkManagerCore::startListening( HListener listener, u_int16_t p
     ListenerInfo& info = m_Listeners.at(listener);
 
     if( info.m_Socket != k_HSteamListenSocket_Invalid || info.m_Socket != k_HSteamNetPollGroup_Invalid )
-        return MAKE_ERROR(HTTPErrors::eInvalidSocket, "Already Listening on this Scoket -> Socket/Pollgroup Valid" );
+        return MAKE_ERROR(HTTPErrors::eInvalidCall, "Already Listening on this Scoket -> Socket/Pollgroup Valid" );
 
     auto result = info.m_Listener->initSocket( port );
     if( result.isErr() )
@@ -58,7 +73,7 @@ Result<void> NetworkManagerCore::startListening( HListener listener, u_int16_t p
 
     info.m_Socket = SocketHandlers.m_Socket;
 
-    m_SocketClientsMap.emplace(info.m_Socket, SocketInfo(info.m_PollGroup) );
+    m_SocketClientsMap.emplace(info.m_Socket, SocketInfo(SocketHandlers.m_PollGroup) );
 
     info.m_Listener->startListening(); 
     
@@ -74,11 +89,8 @@ Result<void> NetworkManagerCore::stopListening( HListener listener ){
 
     ListenerInfo& info = m_Listeners.at(listener);
 
-
     if( info.m_Socket == k_HSteamListenSocket_Invalid )
-        return MAKE_ERROR(HTTPErrors::eInvalidSocket, "Not currently Listening (Double Call?)");
-
-    info.m_Listener->stopListening();
+        return MAKE_ERROR(HTTPErrors::eInvalidCall, "Not currently Listening (Double Call?)");
 
     assert(m_SocketClientsMap.find(info.m_Socket) != m_SocketClientsMap.end());
 
@@ -96,7 +108,6 @@ Result<void> NetworkManagerCore::stopListening( HListener listener ){
 
     info.m_Socket = k_HSteamListenSocket_Invalid;
 
-
     info.m_Listener->stopListening();
 
     LOG_VINFO("Destroyed Socket on Listener", info.ListenerName);
@@ -104,23 +115,28 @@ Result<void> NetworkManagerCore::stopListening( HListener listener ){
     return {};
 }
 
-
-template<typename T>
-Result<ThreadSaveQueue<T>*> NetworkManagerCore::getQueue( HListener listener, QueueType queueType ){
-    
+Result<ThreadSaveQueue<Request>*> NetworkManagerCore::getQueue( HListener listener, QueueType queueType ){
     if(auto err = isValidListenerHandler(listener); err.isErr())
-        return err;
+        return MAKE_ERROR(err.error().ErrorCode, err.error().Message);
 
     auto& pListener = m_Listeners.at(listener); 
     switch ( queueType ) 
     {
-        case ERROR:
-            return pListener.m_Listener->getErrorQueue();
         case RECEIVED:
             return pListener.m_Listener->getReceivedQueue();
         case OUTGOING:
             return pListener.m_Listener->getOutgoingQueue();
     }
+}
+
+Result<ThreadSaveQueue<Error::ErrorValue<HTTPErrors>>*> NetworkManagerCore::getErrorQueue( HListener listener )
+{
+    if(auto err = isValidListenerHandler(listener); err.isErr())
+        return MAKE_ERROR(err.error().ErrorCode, err.error().Message);
+
+    auto& pListener = m_Listeners.at(listener); 
+
+    return pListener.m_Listener->getErrorQueue();
 }
 
 void NetworkManagerCore::ConnectionServed( HSteamListenSocket socket, HSteamNetConnection connection ){
@@ -200,10 +216,10 @@ void NetworkManagerCore::Connecting( SteamNetConnectionStatusChangedCallback_t* 
 
 void NetworkManagerCore::Disconnected( SteamNetConnectionStatusChangedCallback_t* pInfo ){
 
-    const char* pDebugMsg;
     if( pInfo->m_eOldState != k_ESteamNetworkingConnectionState_Connected ){
         assert( pInfo->m_eOldState == k_ESteamNetworkingConnectionState_Connecting );
     }else {
+        const char* pDebugMsg;
         if( pInfo->m_info.m_eState == k_ESteamNetworkingConnectionState_ProblemDetectedLocally){
             pDebugMsg = "Problem detected Locally closing Connection to";
         }else {
@@ -222,7 +238,7 @@ void NetworkManagerCore::Disconnected( SteamNetConnectionStatusChangedCallback_t
     assert(con_it != connections.end());
     connections.erase(con_it);
     
-    SteamNetworkingSockets()->CloseConnection( pInfo->m_hConn, 0, nullptr, false );
+    m_pInterface->CloseConnection( pInfo->m_hConn, 0, nullptr, false );
 
     return;
 }
@@ -234,7 +250,7 @@ void NetworkManagerCore::pollConnectionChanges(){
 #define MAX_FUNCTIONS_PER_SESSION 20 
 void NetworkManagerCore::pollFunctionCalls( ThreadSaveQueue<std::function<void()>>* functionQueue ){
     u_int16_t counter = 0;
-    while( !functionQueue->empty() || counter < MAX_FUNCTIONS_PER_SESSION ) {
+    while( !functionQueue->empty() && counter < MAX_FUNCTIONS_PER_SESSION ) {
         auto funk_opt = functionQueue->try_pop();
         if( !funk_opt.has_value() )
             break;

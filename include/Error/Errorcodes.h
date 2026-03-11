@@ -8,6 +8,7 @@ namespace http {
         ePollingGroupInitializationFailed,
         ePollGroupHandlerInvalid,
         eInvalidSocket,
-        eInvalidListener
+        eInvalidListener,
+        eInvalidCall
     };
 }
