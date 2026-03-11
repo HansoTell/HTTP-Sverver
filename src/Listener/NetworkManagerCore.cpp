@@ -216,10 +216,10 @@ void NetworkManagerCore::Connecting( SteamNetConnectionStatusChangedCallback_t* 
 
 void NetworkManagerCore::Disconnected( SteamNetConnectionStatusChangedCallback_t* pInfo ){
 
-    const char* pDebugMsg;
     if( pInfo->m_eOldState != k_ESteamNetworkingConnectionState_Connected ){
         assert( pInfo->m_eOldState == k_ESteamNetworkingConnectionState_Connecting );
     }else {
+        const char* pDebugMsg;
         if( pInfo->m_info.m_eState == k_ESteamNetworkingConnectionState_ProblemDetectedLocally){
             pDebugMsg = "Problem detected Locally closing Connection to";
         }else {
@@ -238,7 +238,7 @@ void NetworkManagerCore::Disconnected( SteamNetConnectionStatusChangedCallback_t
     assert(con_it != connections.end());
     connections.erase(con_it);
     
-    SteamNetworkingSockets()->CloseConnection( pInfo->m_hConn, 0, nullptr, false );
+    m_pInterface->CloseConnection( pInfo->m_hConn, 0, nullptr, false );
 
     return;
 }
@@ -250,7 +250,7 @@ void NetworkManagerCore::pollConnectionChanges(){
 #define MAX_FUNCTIONS_PER_SESSION 20 
 void NetworkManagerCore::pollFunctionCalls( ThreadSaveQueue<std::function<void()>>* functionQueue ){
     u_int16_t counter = 0;
-    while( !functionQueue->empty() || counter < MAX_FUNCTIONS_PER_SESSION ) {
+    while( !functionQueue->empty() && counter < MAX_FUNCTIONS_PER_SESSION ) {
         auto funk_opt = functionQueue->try_pop();
         if( !funk_opt.has_value() )
             break;
