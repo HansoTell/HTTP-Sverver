@@ -6,6 +6,7 @@
 #include "Error/Error.h"
 #include "Logger/Logger.h"
 #include "steam/isteamnetworkingsockets.h"
+#include "steam/isteamnetworkingutils.h"
 #include "steam/steamclientpublic.h"
 #include "steam/steamnetworkingtypes.h"
 
@@ -41,11 +42,13 @@ public:
     virtual EResult SendMessageToConnection( HSteamNetConnection hConn, const void *pData, uint32 cbData, int nSendFlags, int64 *pOutMessageNumber ) = 0;   
 	virtual bool CloseListenSocket( HSteamListenSocket hSocket ) = 0;
 	virtual bool DestroyPollGroup( HSteamNetPollGroup hPollGroup ) = 0;
+
+    virtual bool SetGlobalCallback_SteamNetConnectionStatusChanged(  FnSteamNetConnectionStatusChanged fnCallback ) = 0;
 };
 
 class SteamNetworkingSocketsAdapter : public ISteamNetworkinSocketsAdapter {
 public:
-    SteamNetworkingSocketsAdapter( ISteamNetworkingSockets* real ) : m_Real(real) {}
+    SteamNetworkingSocketsAdapter( ISteamNetworkingSockets* real, ISteamNetworkingUtils* utils ) : m_Real(real), m_Utils(utils) {}
 
     EResult AcceptConnection( HSteamNetConnection hConn ) override { return m_Real->AcceptConnection( hConn ); } 
     bool SetConnectionPollGroup( HSteamNetConnection hConn, HSteamNetPollGroup hPollGroup ) override { return m_Real->SetConnectionPollGroup(hConn, hPollGroup); } 
@@ -58,7 +61,9 @@ public:
     EResult SendMessageToConnection( HSteamNetConnection hConn, const void *pData, uint32 cbData, int nSendFlags, int64 *pOutMessageNumber ) override { return m_Real->SendMessageToConnection(hConn, pData, cbData, nSendFlags, pOutMessageNumber); }   
 	bool CloseListenSocket( HSteamListenSocket hSocket ) override { return m_Real->CloseListenSocket(hSocket); }
 	bool DestroyPollGroup( HSteamNetPollGroup hPollGroup ) override { return m_Real->DestroyPollGroup(hPollGroup); }
+    bool SetGlobalCallback_SteamNetConnectionStatusChanged(FnSteamNetConnectionStatusChanged fnCallback) override { return m_Utils->SetGlobalCallback_SteamNetConnectionStatusChanged(fnCallback); }
 private:
     ISteamNetworkingSockets* m_Real;
+    ISteamNetworkingUtils* m_Utils;
 };
 }

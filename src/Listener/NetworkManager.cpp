@@ -16,11 +16,13 @@
 
 namespace http{
 
-void NetworkManager::init( std::unique_ptr<INetworkManagerCore> core  ){
+void NetworkManager::init( std::unique_ptr<INetworkManagerCore> core, std::shared_ptr<ISteamNetworkinSocketsAdapter> pInterface ){
 
-    SteamNetworkingUtils()->SetGlobalCallback_SteamNetConnectionStatusChanged( sOnConnectionStatusChangedCallback );
-
+    m_pInterface = pInterface;
+    
     m_Core = std::move(core);
+
+    m_pInterface->SetGlobalCallback_SteamNetConnectionStatusChanged( sOnConnectionStatusChangedCallback );
 
     m_NetworkThread = std::thread ( [this](){ this->run(); } );
 }
@@ -122,8 +124,6 @@ void NetworkManager::run(){
 }
 
 void NetworkManager::tick(){
-    //Wie machen wir das schön gegen wir die queue als * rein? Oder nehmen wir die methoden doch hier als private rein
-    //-->würde keinen sinn wirklich machen wegen testing
     m_Core->pollFunctionCalls( &m_FunctionCalls );
     m_Core->pollConnectionChanges();
     std::this_thread::sleep_for(std::chrono::milliseconds(5));

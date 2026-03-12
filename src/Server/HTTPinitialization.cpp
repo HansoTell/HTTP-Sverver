@@ -2,6 +2,7 @@
 
 #include "Logger/Logger.h"
 #include "http/NetworkManager.h"
+#include "steam/isteamnetworkingutils.h"
 #include <filesystem>
 #include <memory>
 
@@ -31,9 +32,9 @@ bool initHTTP(){
         return false;
     }
 
-    std::shared_ptr<SteamNetworkingSocketsAdapter> pInterface = std::make_shared<SteamNetworkingSocketsAdapter>( SteamNetworkingSockets() );
+    std::shared_ptr<SteamNetworkingSocketsAdapter> pInterface = std::make_shared<SteamNetworkingSocketsAdapter>( SteamNetworkingSockets(), SteamNetworkingUtils() );
 
-    NetworkManager::Get().init( std::make_unique<NetworkManagerCore>(pInterface, std::make_unique<ListenerFactory>(pInterface, NetworkManager::sConnectionServedCallback)));
+    NetworkManager::Get().init( std::make_unique<NetworkManagerCore>(pInterface, std::make_unique<ListenerFactory>(pInterface, NetworkManager::sConnectionServedCallback)), pInterface);
 
     isHTTPInitialized = true;
 
