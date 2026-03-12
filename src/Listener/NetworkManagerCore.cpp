@@ -1,5 +1,6 @@
 #include "Datastrucutres/ThreadSaveQueue.h"
 #include "Error/Errorcodes.h"
+#include "Logger/Logger.h"
 #include "http/HTTPinitialization.h"
 #include "http/NetworkManager.h"
 #include "steam/isteamnetworkingsockets.h"
@@ -48,8 +49,11 @@ Result<void> NetworkManagerCore::DestroyListener( HListener listener ){
         return err;
 
     stopListening( listener );
+    auto& listenerInfo = m_Listeners.at(listener);
 
-    m_Listeners.at(listener).m_Listener.reset(nullptr);
+    LOG_VINFO("Destroyed Listener", listenerInfo.ListenerName);
+    listenerInfo.m_Listener.reset(nullptr);
+
     m_Listeners.erase(listener);
 
     return {};

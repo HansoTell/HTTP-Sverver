@@ -69,15 +69,12 @@ public:
     virtual void pollConnectionChanges() = 0;
     virtual void pollFunctionCalls( ThreadSaveQueue<std::function<void()>>* functionQueue ) = 0;
     virtual void callbackManager( SteamNetConnectionStatusChangedCallback_t *pInfo ) = 0;
-    virtual const std::unordered_map<HSteamListenSocket, SocketInfo> getSocketClientsMap() const = 0; 
-    virtual const std::unordered_map<HListener, ListenerInfo> getListenerMap() const= 0;
+    virtual bool isSocketClientsMapEmpty() = 0;
 };
 
 
 
 class NetworkManagerCore {
-public:
-    std::unordered_map<HSteamListenSocket, SocketInfo> m_SocketClientsMap;
 public:
     HListener createListener( const char* ListenerName );
     Result<void> DestroyListener( HListener listener );
@@ -86,15 +83,17 @@ public:
     Result<void> stopListening( HListener listener );
     Result<ThreadSaveQueue<Request>*> getQueue( HListener listener, QueueType queueType);
     Result<ThreadSaveQueue<Error::ErrorValue<HTTPErrors>>*> getErrorQueue( HListener listener ); 
+    bool isSocketClientsMapEmpty() { return m_SocketClientsMap.empty(); }
 
-    const auto getSocketClientsMap() const { return m_SocketClientsMap; }
-    const auto getListenerMap() const { return m_Listeners; }
     void ConnectionServed( HSteamListenSocket socket , HSteamNetConnection connection );
-
     void pollConnectionChanges();
     void pollFunctionCalls( ThreadSaveQueue<std::function<void()>>* functionQueue );
     
     void callbackManager( SteamNetConnectionStatusChangedCallback_t *pInfo );
+public:
+    //Methodes only for Testing
+    const auto& getSocketClientsMap() const { return m_SocketClientsMap; }
+    const auto& getListenerMap() const { return m_Listeners; }
 public:
     NetworkManagerCore( std::shared_ptr<ISteamNetworkinSocketsAdapter> interface, std::unique_ptr<IListenerFactory> listenerFactory );
     NetworkManagerCore(const NetworkManagerCore& other) = delete;
@@ -108,6 +107,7 @@ private:
 
 private:
     std::unordered_map<HListener, ListenerInfo> m_Listeners;
+    std::unordered_map<HSteamListenSocket, SocketInfo> m_SocketClientsMap;
 
     u_int64_t m_ListenerHandlerIndex = HListener_Invalid;
     std::shared_ptr<ISteamNetworkinSocketsAdapter> m_pInterface;

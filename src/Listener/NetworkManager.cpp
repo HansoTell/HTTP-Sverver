@@ -113,11 +113,10 @@ void NetworkManager::run(){
 
         lock.unlock();
 
-        const auto& SocketClientsMap = m_Core->getSocketClientsMap();
         while( m_Busy ){
             tick();
 
-            if( SocketClientsMap.empty() && m_FunctionCalls.empty() )
+            if( m_Core->isSocketClientsMapEmpty() && m_FunctionCalls.empty() )
                 m_Busy = false;
         }
 
