@@ -54,14 +54,12 @@ struct ListenerInfo {
 };
 
 
-//wrapper um maps bauen für test zugriff und allgemeinen zugriff
-//größtes problem können kein push back mehr machen... -> also könnten methode machen die callback aufruft mit connecting so das connected halt...
 class INetworkManagerCore {
 public:
-    ~INetworkManagerCore() = default;
+    virtual ~INetworkManagerCore() = default;
     virtual HListener createListener( const char* ListenerName ) = 0;
     virtual Result<void> DestroyListener( HListener listener ) = 0;
-    virtual Result<void> startListening( HListener listener, u_int64_t port ) = 0;
+    virtual Result<void> startListening( HListener listener, u_int16_t port ) = 0;
     virtual Result<void> stopListening( HListener listener ) = 0;
     virtual Result<ThreadSaveQueue<Request>*> getQueue( HListener listener, QueueType queueType) = 0;
     virtual Result<ThreadSaveQueue<Error::ErrorValue<HTTPErrors>>*> getErrorQueue( HListener listener ) = 0; 
@@ -74,22 +72,22 @@ public:
 
 
 
-class NetworkManagerCore {
+class NetworkManagerCore : public INetworkManagerCore {
 public:
-    HListener createListener( const char* ListenerName );
-    Result<void> DestroyListener( HListener listener );
+    HListener createListener( const char* ListenerName ) override;
+    Result<void> DestroyListener( HListener listener ) override;
 
-    Result<void> startListening( HListener listener, u_int16_t port );
-    Result<void> stopListening( HListener listener );
-    Result<ThreadSaveQueue<Request>*> getQueue( HListener listener, QueueType queueType);
-    Result<ThreadSaveQueue<Error::ErrorValue<HTTPErrors>>*> getErrorQueue( HListener listener ); 
-    bool isSocketClientsMapEmpty() { return m_SocketClientsMap.empty(); }
+    Result<void> startListening( HListener listener, u_int16_t port ) override;
+    Result<void> stopListening( HListener listener ) override;
+    Result<ThreadSaveQueue<Request>*> getQueue( HListener listener, QueueType queueType) override;
+    Result<ThreadSaveQueue<Error::ErrorValue<HTTPErrors>>*> getErrorQueue( HListener listener ) override; 
+    bool isSocketClientsMapEmpty() override { return m_SocketClientsMap.empty(); }
 
-    void ConnectionServed( HSteamListenSocket socket , HSteamNetConnection connection );
-    void pollConnectionChanges();
-    void pollFunctionCalls( ThreadSaveQueue<std::function<void()>>* functionQueue );
+    void ConnectionServed( HSteamListenSocket socket , HSteamNetConnection connection ) override;
+    void pollConnectionChanges() override;
+    void pollFunctionCalls( ThreadSaveQueue<std::function<void()>>* functionQueue ) override;
     
-    void callbackManager( SteamNetConnectionStatusChangedCallback_t *pInfo );
+    void callbackManager( SteamNetConnectionStatusChangedCallback_t *pInfo ) override;
 public:
     //Methodes only for Testing
     const auto& getSocketClientsMap() const { return m_SocketClientsMap; }
@@ -121,7 +119,7 @@ public:
         return instance;
     }
 
-    void init( std::shared_ptr<ISteamNetworkinSocketsAdapter> SteamAdapter );
+    void init( std::unique_ptr<INetworkManagerCore> core );
     void kill();
     
     HListener createListener( const char* ListenerName );
@@ -138,8 +136,6 @@ public:
 public:
     static void sOnConnectionStatusChangedCallback( SteamNetConnectionStatusChangedCallback_t* pInfo ) { NetworkManager::Get().runCallbacks( pInfo ); } 
     static void sConnectionServedCallback( HSteamListenSocket socket, HSteamNetConnection connection ) { NetworkManager::Get().ConnectionServed( socket, connection ); }
-public:
-    std::shared_ptr<ISteamNetworkinSocketsAdapter> m_pInterface;
 private:
 
     void tick();
@@ -171,6 +167,6 @@ private:
 
 
     ThreadSaveQueue<std::function<void()>> m_FunctionCalls;
-    std::unique_ptr<NetworkManagerCore> m_Core;
+    std::unique_ptr<INetworkManagerCore> m_Core;
 };
 }

@@ -31,7 +31,9 @@ bool initHTTP(){
         return false;
     }
 
-    NetworkManager::Get().init( std::make_shared<SteamNetworkingSocketsAdapter>(SteamNetworkingSockets()) );
+    std::shared_ptr<SteamNetworkingSocketsAdapter> pInterface = std::make_shared<SteamNetworkingSocketsAdapter>( SteamNetworkingSockets() );
+
+    NetworkManager::Get().init( std::make_unique<NetworkManagerCore>(pInterface, std::make_unique<ListenerFactory>(pInterface, NetworkManager::sConnectionServedCallback)));
 
     isHTTPInitialized = true;
 
