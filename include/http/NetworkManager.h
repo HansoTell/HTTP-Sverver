@@ -119,7 +119,7 @@ public:
         return instance;
     }
 
-    void init( std::unique_ptr<INetworkManagerCore> core, std::shared_ptr<ISteamNetworkinSocketsAdapter> pInterface );
+    Result<void> init( std::unique_ptr<INetworkManagerCore> core, std::shared_ptr<ISteamNetworkinSocketsAdapter> pInterface );
     void kill();
     
     HListener createListener( const char* ListenerName );
@@ -168,5 +168,6 @@ private:
     ThreadSaveQueue<std::function<void()>> m_FunctionCalls;
     std::unique_ptr<INetworkManagerCore> m_Core;
     std::shared_ptr<ISteamNetworkinSocketsAdapter> m_pInterface;
+    bool m_initialized = false;
 };
 }

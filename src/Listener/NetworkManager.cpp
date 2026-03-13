@@ -1,6 +1,7 @@
 #include "http/NetworkManager.h"
 
 #include "Datastrucutres/ThreadSaveQueue.h"
+#include "Error/Errorcodes.h"
 #include "steam/steamnetworkingtypes.h"
 #include "http/HTTPinitialization.h"
 
@@ -16,7 +17,10 @@
 
 namespace http{
 
-void NetworkManager::init( std::unique_ptr<INetworkManagerCore> core, std::shared_ptr<ISteamNetworkinSocketsAdapter> pInterface ){
+Result<void> NetworkManager::init( std::unique_ptr<INetworkManagerCore> core, std::shared_ptr<ISteamNetworkinSocketsAdapter> pInterface ){
+
+    if( m_initialized )
+        return MAKE_ERROR(HTTPErrors::eInvalidCall, "NetworkManager Already initialized need to call Kill first");
 
     m_pInterface = pInterface;
     
@@ -25,6 +29,10 @@ void NetworkManager::init( std::unique_ptr<INetworkManagerCore> core, std::share
     m_pInterface->SetGlobalCallback_SteamNetConnectionStatusChanged( sOnConnectionStatusChangedCallback );
 
     m_NetworkThread = std::thread ( [this](){ this->run(); } );
+
+    m_initialized = true;
+
+    return {};
 }
 
 void NetworkManager::kill(){
@@ -35,6 +43,8 @@ void NetworkManager::kill(){
         m_NetworkThread.join();
 
     m_Core.reset(nullptr);
+    m_pInterface = nullptr;
+    m_initialized = false;
 }
 
 HListener NetworkManager::createListener( const char* ListenerName ) {

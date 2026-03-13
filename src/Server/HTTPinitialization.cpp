@@ -12,6 +12,9 @@ bool isHTTPInitialized = false;
 
 bool initHTTP(){
 
+    if( isHTTPInitialized )
+        return false;
+
     std::filesystem::path logDir;
 
     if( const char* env = std::getenv("APP_LOG_DIR") ){
@@ -34,8 +37,11 @@ bool initHTTP(){
 
     std::shared_ptr<SteamNetworkingSocketsAdapter> pInterface = std::make_shared<SteamNetworkingSocketsAdapter>( SteamNetworkingSockets(), SteamNetworkingUtils() );
 
-    NetworkManager::Get().init( std::make_unique<NetworkManagerCore>(pInterface, std::make_unique<ListenerFactory>(pInterface, NetworkManager::sConnectionServedCallback)), pInterface);
+    auto res = NetworkManager::Get().init( std::make_unique<NetworkManagerCore>(pInterface, std::make_unique<ListenerFactory>(pInterface, NetworkManager::sConnectionServedCallback)), pInterface);
 
+    if ( res.isErr() ) 
+        return false;
+    
     isHTTPInitialized = true;
 
     return true;
