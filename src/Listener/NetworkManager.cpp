@@ -28,9 +28,11 @@ Result<void> NetworkManager::init( std::unique_ptr<INetworkManagerCore> core, st
 
     m_pInterface->SetGlobalCallback_SteamNetConnectionStatusChanged( sOnConnectionStatusChangedCallback );
 
-    m_NetworkThread = std::thread ( [this](){ this->run(); } );
+    m_running = true;
 
     m_initialized = true;
+
+    m_NetworkThread = std::thread ( [this](){ this->run(); } );
 
     return {};
 }
@@ -83,7 +85,7 @@ Result<void> NetworkManager::stopListening( HListener listener ){
     });
 }
 
-
+//can return invalid listener
 Result<ThreadSaveQueue<Request>*> NetworkManager::getQueue( HListener listener, QueueType queueType){
     notifyFunktionCall();
 
@@ -93,6 +95,7 @@ Result<ThreadSaveQueue<Request>*> NetworkManager::getQueue( HListener listener, 
 }
 
 
+//can return invalid listener
 Result<ThreadSaveQueue<Error::ErrorValue<HTTPErrors>>*> NetworkManager::getErrorQueue( HListener listener ){
     notifyFunktionCall();
 

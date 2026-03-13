@@ -124,23 +124,25 @@ public:
     
     HListener createListener( const char* ListenerName );
     Result<void> DestroyListener( HListener listener );
-
     Result<void> startListening( HListener listener, u_int16_t port);
     Result<void> stopListening( HListener listener );
     Result<ThreadSaveQueue<Request>*> getQueue( HListener listener, QueueType queueType);
     Result<ThreadSaveQueue<Error::ErrorValue<HTTPErrors>>*> getErrorQueue( HListener listener );
     void ConnectionServed( HSteamListenSocket socket, HSteamNetConnection connection );
-
     void runCallbacks( SteamNetConnectionStatusChangedCallback_t* pInfo ) { m_Core->callbackManager( pInfo ); }
-
 public:
     static void sOnConnectionStatusChangedCallback( SteamNetConnectionStatusChangedCallback_t* pInfo ) { NetworkManager::Get().runCallbacks( pInfo ); } 
     static void sConnectionServedCallback( HSteamListenSocket socket, HSteamNetConnection connection ) { NetworkManager::Get().ConnectionServed( socket, connection ); }
+public:
+    //Test methoden
+    bool isThreadJoinable() const { return m_NetworkThread.joinable(); }
+    bool isRunning() const { return m_running; }
+    bool isInitialized() const { return m_initialized; }
 private:
-
     void tick();
     void run();
 
+    //refactore ohne shared pointer pls...
     template<typename Funktion>
     auto executeFunktion(Funktion&& func) ->std::invoke_result_t<Funktion>{
 
@@ -159,7 +161,7 @@ private:
 
     void notifyFunktionCall();
 private:
-    std::atomic<bool> m_running { true };
+    std::atomic<bool> m_running;
     std::atomic<bool> m_Busy { true };
     std::mutex m_ManagerMutex;
     std::condition_variable m_callbackCV;

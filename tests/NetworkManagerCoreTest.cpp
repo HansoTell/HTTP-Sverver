@@ -117,6 +117,21 @@ TEST_F(NetworkManagerCoreTest, CreateListener_Success){
     EXPECT_EQ(manager->getListenerMap().at(handler).m_Listener.get(), pListener);
 }
 
+TEST_F(NetworkManagerCoreTest, Create_MultibleListeners){
+    MOCKListener* pListener1 = nullptr;
+    setupListener(pListener1);
+
+    HListener handler1 = manager->createListener("Test");
+
+    MOCKListener* pListener2 = nullptr;
+    setupListener(pListener2);
+
+    HListener handler2 = manager->createListener("Test1");
+
+    EXPECT_NE(handler1, handler2);
+    EXPECT_EQ(manager->getListenerMap().size(), 2);
+}
+
 //DestroyListener
 TEST_F(NetworkManagerCoreTest, DestroyListener_Success){
     MOCKListener* pListener = nullptr;
