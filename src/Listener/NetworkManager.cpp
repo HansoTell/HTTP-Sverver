@@ -1,6 +1,7 @@
 #include "http/NetworkManager.h"
 
 #include "Datastrucutres/ThreadSaveQueue.h"
+#include "Error/Errorcodes.h"
 #include "steam/steamnetworkingtypes.h"
 #include "http/HTTPinitialization.h"
 
@@ -16,16 +17,24 @@
 
 namespace http{
 
-//bräuchten Halt spezifisch für unterschiedliche interfaces von Listenern
-void NetworkManager::init( std::shared_ptr<ISteamNetworkinSocketsAdapter> SteamAdapter ){
+Result<void> NetworkManager::init( std::unique_ptr<INetworkManagerCore> core, std::shared_ptr<ISteamNetworkinSocketsAdapter> pInterface ){
 
-    SteamNetworkingUtils()->SetGlobalCallback_SteamNetConnectionStatusChanged( sOnConnectionStatusChangedCallback );
+    if( m_initialized )
+        return MAKE_ERROR(HTTPErrors::eInvalidCall, "NetworkManager Already initialized need to call Kill first");
 
-    m_pInterface = std::move(SteamAdapter);
+    m_pInterface = pInterface;
+    
+    m_Core = std::move(core);
 
-    m_Core = std::make_unique<NetworkManagerCore>( m_pInterface, std::make_unique<ListenerFactory>(m_pInterface, sConnectionServedCallback) );
+    m_pInterface->SetGlobalCallback_SteamNetConnectionStatusChanged( sOnConnectionStatusChangedCallback );
+
+    m_running = true;
+
+    m_initialized = true;
 
     m_NetworkThread = std::thread ( [this](){ this->run(); } );
+
+    return {};
 }
 
 void NetworkManager::kill(){
@@ -36,6 +45,8 @@ void NetworkManager::kill(){
         m_NetworkThread.join();
 
     m_Core.reset(nullptr);
+    m_pInterface = nullptr;
+    m_initialized = false;
 }
 
 HListener NetworkManager::createListener( const char* ListenerName ) {
@@ -74,7 +85,7 @@ Result<void> NetworkManager::stopListening( HListener listener ){
     });
 }
 
-
+//can return invalid listener
 Result<ThreadSaveQueue<Request>*> NetworkManager::getQueue( HListener listener, QueueType queueType){
     notifyFunktionCall();
 
@@ -84,6 +95,7 @@ Result<ThreadSaveQueue<Request>*> NetworkManager::getQueue( HListener listener, 
 }
 
 
+//can return invalid listener
 Result<ThreadSaveQueue<Error::ErrorValue<HTTPErrors>>*> NetworkManager::getErrorQueue( HListener listener ){
     notifyFunktionCall();
 
@@ -116,7 +128,7 @@ void NetworkManager::run(){
         while( m_Busy ){
             tick();
 
-            if( m_Core->m_SocketClientsMap.empty() && m_FunctionCalls.empty() )
+            if( m_Core->isSocketClientsMapEmpty() && m_FunctionCalls.empty() )
                 m_Busy = false;
         }
 
@@ -125,8 +137,6 @@ void NetworkManager::run(){
 }
 
 void NetworkManager::tick(){
-    //Wie machen wir das schön gegen wir die queue als * rein? Oder nehmen wir die methoden doch hier als private rein
-    //-->würde keinen sinn wirklich machen wegen testing
     m_Core->pollFunctionCalls( &m_FunctionCalls );
     m_Core->pollConnectionChanges();
     std::this_thread::sleep_for(std::chrono::milliseconds(5));

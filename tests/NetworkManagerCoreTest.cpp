@@ -9,10 +9,10 @@
 #include <functional>
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
-#include <iostream>
 #include <memory>
 #include <sys/types.h>
 #include <utility>
+#include <vector>
 
 #include "mocks/SteamNetworkingSocketsAdapterMock.h"
 #include "mocks/ListenerMock.h"
@@ -31,6 +31,8 @@ protected:
     std::unique_ptr<MOCKListenerFactory> mockFactory;
     MOCKListenerFactory* pMockFactory;
     http::NetworkManagerCore* manager;
+
+    int conCount = 1;
      
     void SetUp() override {
         CREATE_LOGGER("NetworkmanagerCoreTests.log");
@@ -73,6 +75,30 @@ protected:
 
         return handler;
     }
+
+    //geben wir connection number zurück? oder nehmen wir sie als parameter rein
+    HSteamNetConnection addConnection( HSteamListenSocket socket){
+        HSteamNetConnection con = conCount;
+
+        SteamNetConnectionStatusChangedCallback_t info{};
+        info.m_info.m_eState = k_ESteamNetworkingConnectionState_Connecting;
+        info.m_hConn = con;
+        info.m_info.m_hListenSocket = socket;
+
+        EXPECT_CALL(*pMockSteam, AcceptConnection(con)).WillOnce(Return(k_EResultOK));
+        EXPECT_CALL(*pMockSteam, CloseConnection(con, 0, nullptr, false)).Times(0);
+        EXPECT_CALL(*pMockSteam, SetConnectionPollGroup(con, 55)).WillOnce(Return(1));
+
+        manager->callbackManager(&info);
+
+        auto& socketInfo = manager->getSocketClientsMap().at(12345);
+
+        EXPECT_EQ(socketInfo.m_AllConnections.size(), con);
+
+        conCount++;
+
+        return con;
+    }
 };
 
 //Create Listener
@@ -85,9 +111,25 @@ TEST_F(NetworkManagerCoreTest, CreateListener_Success){
 
 
     EXPECT_NE(handler, HListener_Invalid);
-    EXPECT_TRUE(manager->m_SocketClientsMap.empty());
-    //Gibt es eine möglichkeit auf m_Listener zu zugreifen um größe, name zu prüfen und ptr zu prüfen in Listener Info
+    EXPECT_TRUE(manager->isSocketClientsMapEmpty());
+    EXPECT_STREQ(manager->getListenerMap().at(handler).ListenerName, "Test");
+    EXPECT_EQ(manager->getListenerMap().at(handler).m_Socket, k_HSteamListenSocket_Invalid);
+    EXPECT_EQ(manager->getListenerMap().at(handler).m_Listener.get(), pListener);
+}
 
+TEST_F(NetworkManagerCoreTest, Create_MultibleListeners){
+    MOCKListener* pListener1 = nullptr;
+    setupListener(pListener1);
+
+    HListener handler1 = manager->createListener("Test");
+
+    MOCKListener* pListener2 = nullptr;
+    setupListener(pListener2);
+
+    HListener handler2 = manager->createListener("Test1");
+
+    EXPECT_NE(handler1, handler2);
+    EXPECT_EQ(manager->getListenerMap().size(), 2);
 }
 
 //DestroyListener
@@ -98,8 +140,8 @@ TEST_F(NetworkManagerCoreTest, DestroyListener_Success){
 
     auto res = manager->DestroyListener(handler);
 
-    //wie manager sachen +berprüfen von m<-listener
-    EXPECT_EQ(manager->m_SocketClientsMap.size(), 0);
+    EXPECT_EQ(manager->getSocketClientsMap().size(), 0);
+    EXPECT_TRUE(manager->getListenerMap().empty());
     EXPECT_TRUE(res.isOK());
 }
 
@@ -117,7 +159,7 @@ TEST_F(NetworkManagerCoreTest, DestroyListenerInListeningState){
     EXPECT_CALL(*pListener, stopListening()).Times(1);
     auto res = manager->DestroyListener(handler);
 
-    //m_Listener scheiß??
+    EXPECT_TRUE(manager->getListenerMap().empty());
     EXPECT_TRUE(res.isOK());
 }
 
@@ -140,9 +182,8 @@ TEST_F(NetworkManagerCoreTest, StartListening_Success){
 
 
     EXPECT_TRUE(result.isOK());
-    EXPECT_TRUE(manager->m_SocketClientsMap.find(12345)!= manager->m_SocketClientsMap.end());
-
-    EXPECT_EQ(manager->m_SocketClientsMap.at(12345).m_AllConnections.size(), 0);
+    ASSERT_TRUE(manager->getSocketClientsMap().find(12345) != manager->getSocketClientsMap().end());
+    EXPECT_EQ(manager->getSocketClientsMap().at(12345).m_AllConnections.size(), 0);
 }
 
 TEST_F(NetworkManagerCoreTest, StartListening_initSocketFails){
@@ -182,9 +223,129 @@ TEST_F(NetworkManagerCoreTest, StartListening_DoubleCall){
     EXPECT_EQ(result.error().ErrorCode, http::HTTPErrors::eInvalidCall);
 }
 
+//callbackManager
+TEST_F(NetworkManagerCoreTest, callbackManager_successConnecting){
+    MOCKListener* pListener = nullptr;
+    HListener handler = setupListeningState(8080, pListener);
+    SteamNetConnectionStatusChangedCallback_t info{};
+    info.m_info.m_eState = k_ESteamNetworkingConnectionState_Connecting;
+    info.m_hConn = 222;
+    info.m_info.m_hListenSocket = 12345;
+
+    EXPECT_CALL(*pMockSteam, AcceptConnection(222)).WillOnce(Return(k_EResultOK));
+    EXPECT_CALL(*pMockSteam, CloseConnection(222, 0, nullptr, false)).Times(0);
+    EXPECT_CALL(*pMockSteam, SetConnectionPollGroup(222, 55)).WillOnce(Return(1));
+
+    manager->callbackManager(&info);
+
+    auto& socketInfo = manager->getSocketClientsMap().at(12345);
+
+    EXPECT_EQ(socketInfo.m_PollGroup, 55);
+    ASSERT_EQ(socketInfo.m_AllConnections.size(), 1);
+    EXPECT_EQ(socketInfo.m_AllConnections.at(0).m_connection, 222);
+    EXPECT_FALSE(socketInfo.m_AllConnections[0].isServed);
+}
+
+TEST_F(NetworkManagerCoreTest, callbackManager_ConnectingAcceptConnectionFailes){
+    MOCKListener* pListener = nullptr;
+    HListener handler = setupListeningState(8080, pListener);
+    SteamNetConnectionStatusChangedCallback_t info{};
+    info.m_info.m_eState = k_ESteamNetworkingConnectionState_Connecting;
+    info.m_hConn = 222;
+
+    EXPECT_CALL(*pMockSteam, AcceptConnection(222)).WillOnce(Return(k_EResultRemoteCallFailed));
+    EXPECT_CALL(*pMockSteam, CloseConnection(222, 0, nullptr, false)).Times(1);
+    EXPECT_CALL(*pMockSteam, SetConnectionPollGroup(222, 55)).Times(0);
+
+
+    manager->callbackManager(&info);
+
+    auto& socketInfo = manager->getSocketClientsMap().at(12345);
+
+    EXPECT_EQ(socketInfo.m_PollGroup, 55);
+    ASSERT_EQ(socketInfo.m_AllConnections.size(), 0);
+}
+
+TEST_F(NetworkManagerCoreTest, callbackManager_SettingPollGroupFailes){
+    MOCKListener* pListener = nullptr;
+    HListener handler = setupListeningState(8080, pListener);
+    SteamNetConnectionStatusChangedCallback_t info{};
+    info.m_info.m_eState = k_ESteamNetworkingConnectionState_Connecting;
+    info.m_hConn = 222;
+    info.m_info.m_hListenSocket = 12345;
+
+    EXPECT_CALL(*pMockSteam, AcceptConnection(222)).WillOnce(Return(k_EResultOK));
+    EXPECT_CALL(*pMockSteam, SetConnectionPollGroup(222, 55)).WillOnce(Return(0));
+    EXPECT_CALL(*pMockSteam, CloseConnection(222, 0, nullptr, false)).Times(1);
+
+    manager->callbackManager(&info);
+
+    auto& socketInfo = manager->getSocketClientsMap().at(12345);
+
+    EXPECT_EQ(socketInfo.m_PollGroup, 55);
+    ASSERT_EQ(socketInfo.m_AllConnections.size(), 0);
+}
+
+TEST_F(NetworkManagerCoreTest, callbackManager_problemIntern_Success){
+    MOCKListener* pListener = nullptr;
+    HListener handler = setupListeningState(8080, pListener);
+    HSteamNetConnection con = addConnection(12345);
+    SteamNetConnectionStatusChangedCallback_t info{};
+    info.m_info.m_eState = k_ESteamNetworkingConnectionState_ProblemDetectedLocally;
+    info.m_eOldState = k_ESteamNetworkingConnectionState_Connecting;
+    info.m_hConn = con;
+    info.m_info.m_hListenSocket = 12345;
+    strcpy(info.m_info.m_szConnectionDescription, "test_connection");
+
+    EXPECT_CALL(*pMockSteam, CloseConnection(con, 0, nullptr, false)).Times(1);
+
+    manager->callbackManager(&info);
+
+    auto& allClients = manager->getSocketClientsMap().at(12345).m_AllConnections;
+    EXPECT_EQ(allClients.size(), 0);
+}
+
+TEST_F(NetworkManagerCoreTest, callbackManager_ClosedByPeerSuccess){
+    MOCKListener* pListener = nullptr;
+    HListener handler = setupListeningState(8080, pListener);
+    HSteamNetConnection con = addConnection(12345);
+    SteamNetConnectionStatusChangedCallback_t info{};
+    info.m_info.m_eState = k_ESteamNetworkingConnectionState_ClosedByPeer;
+    info.m_eOldState = k_ESteamNetworkingConnectionState_Connecting;
+    info.m_hConn = con;
+    info.m_info.m_hListenSocket = 12345;
+    strcpy(info.m_info.m_szConnectionDescription, "test_connection");
+
+    EXPECT_CALL(*pMockSteam, CloseConnection(con, 0, nullptr, false)).Times(1);
+
+    manager->callbackManager(&info);
+
+    auto& allClients = manager->getSocketClientsMap().at(12345).m_AllConnections;
+    EXPECT_EQ(allClients.size(), 0);
+}
+
+TEST_F(NetworkManagerCoreTest, callbackManager_unknownEnum){
+    MOCKListener* pListener = nullptr;
+    HListener handler = setupListeningState(8080, pListener);
+    HSteamNetConnection con = addConnection(12345);
+    SteamNetConnectionStatusChangedCallback_t info{};
+    info.m_info.m_eState = k_ESteamNetworkingConnectionState__Force32Bit;
+
+    EXPECT_CALL(*pMockSteam, CloseConnection(con, 0, nullptr, false)).Times(0);
+    EXPECT_CALL(*pMockSteam, AcceptConnection(con)).Times(0);
+    EXPECT_CALL(*pMockSteam, SetConnectionPollGroup(con, 55)).Times(0);
+
+    manager->callbackManager(&info);
+
+    auto& socketInfo = manager->getSocketClientsMap().at(12345);
+
+    EXPECT_EQ(socketInfo.m_PollGroup, 55);
+    ASSERT_EQ(socketInfo.m_AllConnections.size(), 1);
+    EXPECT_EQ(socketInfo.m_AllConnections.at(0).m_connection, con);
+    EXPECT_FALSE(socketInfo.m_AllConnections[0].isServed);
+}
 
 //stopListening
-
 TEST_F(NetworkManagerCoreTest, StopListening_invalidHandler){
     EXPECT_CALL(*pMockSteam, CloseConnection(_, 1, nullptr, false)).Times(0);
 
@@ -211,14 +372,15 @@ TEST_F(NetworkManagerCoreTest, StopListeningWithoutListening){
 TEST_F(NetworkManagerCoreTest, StopListening_Success){
     MOCKListener* pListener = nullptr;
     HListener handler = setupListeningState(8080, pListener);
+    std::vector<HSteamNetConnection> cons;
 
-    #define CONNECTIONS_NUM 3
+    #define CONNECTIONS_NUM 4
     for(u_int32_t i = 0; i < CONNECTIONS_NUM; i++){
-        manager->m_SocketClientsMap.at(12345).m_AllConnections.push_back( { i, false } );
+        HSteamNetConnection con = addConnection(12345);
+        cons.push_back(con);
     }
-    manager->m_SocketClientsMap.at(12345).m_AllConnections.push_back( { 222, true } );
 
-    EXPECT_CALL(*pMockSteam, CloseConnection(_, 1, nullptr, false)).Times(CONNECTIONS_NUM+1);
+    EXPECT_CALL(*pMockSteam, CloseConnection(_, 1, nullptr, false)).Times(CONNECTIONS_NUM);
     
     //Falls darin noch was passiert hier testen
 
@@ -226,7 +388,7 @@ TEST_F(NetworkManagerCoreTest, StopListening_Success){
 
     manager->stopListening(handler);
 
-    EXPECT_TRUE(manager->m_SocketClientsMap.empty());
+    EXPECT_TRUE(manager->isSocketClientsMapEmpty());
 }
 
 TEST_F(NetworkManagerCoreTest, StopListening_DoubleCall){
@@ -260,9 +422,8 @@ TEST_F(NetworkManagerCoreTest, StopListening_RestartListening){
     auto res = manager->startListening(handler, 8080);
 
     ASSERT_TRUE(res.isOK());
-    EXPECT_TRUE(manager->m_SocketClientsMap.find(15)!= manager->m_SocketClientsMap.end());
-
-    EXPECT_EQ(manager->m_SocketClientsMap.at(15).m_AllConnections.size(), 0);
+    ASSERT_TRUE(manager->getSocketClientsMap().find(15) != manager->getSocketClientsMap().end());
+    EXPECT_EQ(manager->getSocketClientsMap().at(15).m_AllConnections.size(), 0);
 }
 
 //getQueue
@@ -318,13 +479,13 @@ TEST_F(NetworkManagerCoreTest, ConnectionServed_Success){
     MOCKListener* pListener = nullptr;
     HListener handler = setupListeningState(8080, pListener);
 
-    manager->m_SocketClientsMap.at(12345).m_AllConnections.push_back( { 222, false } );
+    HSteamNetConnection con = addConnection(12345);
 
-    manager->ConnectionServed(12345, 222);
+    manager->ConnectionServed(12345, con);
 
-    auto& allClients = manager->m_SocketClientsMap.at(12345).m_AllConnections;
-    auto it = std::find_if(allClients.begin(), allClients.end(), [](const http::Connections& con){
-        return con.m_connection == 222;
+    auto& allClients = manager->getSocketClientsMap().at(12345).m_AllConnections;
+    auto it = std::find_if(allClients.begin(), allClients.end(), [con](const http::Connections& conns){
+        return conns.m_connection == con;
     });
 
     EXPECT_TRUE(it->isServed);
@@ -334,13 +495,13 @@ TEST_F(NetworkManagerCoreTest, ConnectionServed_DoubleServed){
     MOCKListener* pListener = nullptr;
     HListener handler = setupListeningState(8080, pListener);
 
-    manager->m_SocketClientsMap.at(12345).m_AllConnections.push_back( { 222, true } );
+    HSteamNetConnection con = addConnection(12345);
 
-    manager->ConnectionServed(12345, 222);
+    manager->ConnectionServed(12345, con);
 
-    auto& allClients = manager->m_SocketClientsMap.at(12345).m_AllConnections;
-    auto it = std::find_if(allClients.begin(), allClients.end(), [](const http::Connections& con){
-        return con.m_connection == 222;
+    auto& allClients = manager->getSocketClientsMap().at(12345).m_AllConnections;
+    auto it = std::find_if(allClients.begin(), allClients.end(), [con](const http::Connections& conns){
+        return conns.m_connection == con;
     });
 
     EXPECT_TRUE(it->isServed);
@@ -392,129 +553,5 @@ TEST_F(NetworkManagerCoreTest, pollFunctionCalls_Success){
 
     EXPECT_EQ(counter, 10);
     EXPECT_EQ(functionCall.size(), 0);
-
 }
 
-//callbackManager
-TEST_F(NetworkManagerCoreTest, callbackManager_successConnecting){
-    MOCKListener* pListener = nullptr;
-    HListener handler = setupListeningState(8080, pListener);
-    SteamNetConnectionStatusChangedCallback_t info{};
-    info.m_info.m_eState = k_ESteamNetworkingConnectionState_Connecting;
-    info.m_hConn = 222;
-    info.m_info.m_hListenSocket = 12345;
-
-    EXPECT_CALL(*pMockSteam, AcceptConnection(222)).WillOnce(Return(k_EResultOK));
-    EXPECT_CALL(*pMockSteam, CloseConnection(222, 0, nullptr, false)).Times(0);
-    EXPECT_CALL(*pMockSteam, SetConnectionPollGroup(222, 55)).WillOnce(Return(1));
-
-
-    manager->callbackManager(&info);
-
-    auto& socketInfo = manager->m_SocketClientsMap.at(12345);
-
-    EXPECT_EQ(socketInfo.m_PollGroup, 55);
-    ASSERT_EQ(socketInfo.m_AllConnections.size(), 1);
-    EXPECT_EQ(socketInfo.m_AllConnections.at(0).m_connection, 222);
-    EXPECT_FALSE(socketInfo.m_AllConnections[0].isServed);
-}
-
-TEST_F(NetworkManagerCoreTest, callbackManager_ConnectingAcceptConnectionFailes){
-    MOCKListener* pListener = nullptr;
-    HListener handler = setupListeningState(8080, pListener);
-    SteamNetConnectionStatusChangedCallback_t info{};
-    info.m_info.m_eState = k_ESteamNetworkingConnectionState_Connecting;
-    info.m_hConn = 222;
-
-    EXPECT_CALL(*pMockSteam, AcceptConnection(222)).WillOnce(Return(k_EResultRemoteCallFailed));
-    EXPECT_CALL(*pMockSteam, CloseConnection(222, 0, nullptr, false)).Times(1);
-    EXPECT_CALL(*pMockSteam, SetConnectionPollGroup(222, 55)).Times(0);
-
-
-    manager->callbackManager(&info);
-
-    auto& socketInfo = manager->m_SocketClientsMap.at(12345);
-
-    EXPECT_EQ(socketInfo.m_PollGroup, 55);
-    ASSERT_EQ(socketInfo.m_AllConnections.size(), 0);
-}
-
-TEST_F(NetworkManagerCoreTest, callbackManager_SettingPollGroupFailes){
-    MOCKListener* pListener = nullptr;
-    HListener handler = setupListeningState(8080, pListener);
-    SteamNetConnectionStatusChangedCallback_t info{};
-    info.m_info.m_eState = k_ESteamNetworkingConnectionState_Connecting;
-    info.m_hConn = 222;
-    info.m_info.m_hListenSocket = 12345;
-
-    EXPECT_CALL(*pMockSteam, AcceptConnection(222)).WillOnce(Return(k_EResultOK));
-    EXPECT_CALL(*pMockSteam, SetConnectionPollGroup(222, 55)).WillOnce(Return(0));
-    EXPECT_CALL(*pMockSteam, CloseConnection(222, 0, nullptr, false)).Times(1);
-
-    manager->callbackManager(&info);
-
-    auto& socketInfo = manager->m_SocketClientsMap.at(12345);
-
-    EXPECT_EQ(socketInfo.m_PollGroup, 55);
-    ASSERT_EQ(socketInfo.m_AllConnections.size(), 0);
-}
-
-TEST_F(NetworkManagerCoreTest, callbackManager_problemIntern_Success){
-    MOCKListener* pListener = nullptr;
-    HListener handler = setupListeningState(8080, pListener);
-    auto& allClients = manager->m_SocketClientsMap.at(12345).m_AllConnections;
-    allClients.push_back( { 222, false } );
-    SteamNetConnectionStatusChangedCallback_t info{};
-    info.m_info.m_eState = k_ESteamNetworkingConnectionState_ProblemDetectedLocally;
-    info.m_eOldState = k_ESteamNetworkingConnectionState_Connecting;
-    info.m_hConn = 222;
-    info.m_info.m_hListenSocket = 12345;
-    strcpy(info.m_info.m_szConnectionDescription, "test_connection");
-
-    EXPECT_CALL(*pMockSteam, CloseConnection(222, 0, nullptr, false)).Times(1);
-
-    manager->callbackManager(&info);
-
-    EXPECT_EQ(allClients.size(), 0);
-}
-
-TEST_F(NetworkManagerCoreTest, callbackManager_ClosedByPeerSuccess){
-    MOCKListener* pListener = nullptr;
-    HListener handler = setupListeningState(8080, pListener);
-    auto& allClients = manager->m_SocketClientsMap.at(12345).m_AllConnections;
-    allClients.push_back( { 222, false } );
-    SteamNetConnectionStatusChangedCallback_t info{};
-    info.m_info.m_eState = k_ESteamNetworkingConnectionState_ClosedByPeer;
-    info.m_eOldState = k_ESteamNetworkingConnectionState_Connecting;
-    info.m_hConn = 222;
-    info.m_info.m_hListenSocket = 12345;
-    strcpy(info.m_info.m_szConnectionDescription, "test_connection");
-
-    EXPECT_CALL(*pMockSteam, CloseConnection(222, 0, nullptr, false)).Times(1);
-
-    manager->callbackManager(&info);
-
-    EXPECT_EQ(allClients.size(), 0);
-}
-
-TEST_F(NetworkManagerCoreTest, callbackManager_unknownEnum){
-    MOCKListener* pListener = nullptr;
-    HListener handler = setupListeningState(8080, pListener);
-    auto& allClients = manager->m_SocketClientsMap.at(12345).m_AllConnections;
-    allClients.push_back( { 222, false } );
-    SteamNetConnectionStatusChangedCallback_t info{};
-    info.m_info.m_eState = k_ESteamNetworkingConnectionState__Force32Bit;
-
-    EXPECT_CALL(*pMockSteam, CloseConnection(222, 0, nullptr, false)).Times(0);
-    EXPECT_CALL(*pMockSteam, AcceptConnection(222)).Times(0);
-    EXPECT_CALL(*pMockSteam, SetConnectionPollGroup(222, 55)).Times(0);
-
-    manager->callbackManager(&info);
-
-    auto& socketInfo = manager->m_SocketClientsMap.at(12345);
-
-    EXPECT_EQ(socketInfo.m_PollGroup, 55);
-    ASSERT_EQ(socketInfo.m_AllConnections.size(), 1);
-    EXPECT_EQ(socketInfo.m_AllConnections.at(0).m_connection, 222);
-    EXPECT_FALSE(socketInfo.m_AllConnections[0].isServed);
-}

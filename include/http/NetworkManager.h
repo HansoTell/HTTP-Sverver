@@ -54,24 +54,44 @@ struct ListenerInfo {
 };
 
 
-
-class NetworkManagerCore {
+class INetworkManagerCore {
 public:
-    std::unordered_map<HSteamListenSocket, SocketInfo> m_SocketClientsMap;
+    virtual ~INetworkManagerCore() = default;
+    virtual HListener createListener( const char* ListenerName ) = 0;
+    virtual Result<void> DestroyListener( HListener listener ) = 0;
+    virtual Result<void> startListening( HListener listener, u_int16_t port ) = 0;
+    virtual Result<void> stopListening( HListener listener ) = 0;
+    virtual Result<ThreadSaveQueue<Request>*> getQueue( HListener listener, QueueType queueType) = 0;
+    virtual Result<ThreadSaveQueue<Error::ErrorValue<HTTPErrors>>*> getErrorQueue( HListener listener ) = 0; 
+    virtual void ConnectionServed( HSteamListenSocket socket , HSteamNetConnection connection ) = 0;
+    virtual void pollConnectionChanges() = 0;
+    virtual void pollFunctionCalls( ThreadSaveQueue<std::function<void()>>* functionQueue ) = 0;
+    virtual void callbackManager( SteamNetConnectionStatusChangedCallback_t *pInfo ) = 0;
+    virtual bool isSocketClientsMapEmpty() = 0;
+};
+
+
+
+class NetworkManagerCore : public INetworkManagerCore {
 public:
-    HListener createListener( const char* ListenerName );
-    Result<void> DestroyListener( HListener listener );
+    HListener createListener( const char* ListenerName ) override;
+    Result<void> DestroyListener( HListener listener ) override;
 
-    Result<void> startListening( HListener listener, u_int16_t port );
-    Result<void> stopListening( HListener listener );
-    Result<ThreadSaveQueue<Request>*> getQueue( HListener listener, QueueType queueType);
-    Result<ThreadSaveQueue<Error::ErrorValue<HTTPErrors>>*> getErrorQueue( HListener listener ); 
-    void ConnectionServed( HSteamListenSocket socket , HSteamNetConnection connection );
+    Result<void> startListening( HListener listener, u_int16_t port ) override;
+    Result<void> stopListening( HListener listener ) override;
+    Result<ThreadSaveQueue<Request>*> getQueue( HListener listener, QueueType queueType) override;
+    Result<ThreadSaveQueue<Error::ErrorValue<HTTPErrors>>*> getErrorQueue( HListener listener ) override; 
+    bool isSocketClientsMapEmpty() override { return m_SocketClientsMap.empty(); }
 
-    void pollConnectionChanges();
-    void pollFunctionCalls( ThreadSaveQueue<std::function<void()>>* functionQueue );
+    void ConnectionServed( HSteamListenSocket socket , HSteamNetConnection connection ) override;
+    void pollConnectionChanges() override;
+    void pollFunctionCalls( ThreadSaveQueue<std::function<void()>>* functionQueue ) override;
     
-    void callbackManager( SteamNetConnectionStatusChangedCallback_t *pInfo );
+    void callbackManager( SteamNetConnectionStatusChangedCallback_t *pInfo ) override;
+public:
+    //Methodes only for Testing
+    const auto& getSocketClientsMap() const { return m_SocketClientsMap; }
+    const auto& getListenerMap() const { return m_Listeners; }
 public:
     NetworkManagerCore( std::shared_ptr<ISteamNetworkinSocketsAdapter> interface, std::unique_ptr<IListenerFactory> listenerFactory );
     NetworkManagerCore(const NetworkManagerCore& other) = delete;
@@ -85,6 +105,7 @@ private:
 
 private:
     std::unordered_map<HListener, ListenerInfo> m_Listeners;
+    std::unordered_map<HSteamListenSocket, SocketInfo> m_SocketClientsMap;
 
     u_int64_t m_ListenerHandlerIndex = HListener_Invalid;
     std::shared_ptr<ISteamNetworkinSocketsAdapter> m_pInterface;
@@ -98,30 +119,30 @@ public:
         return instance;
     }
 
-    void init( std::shared_ptr<ISteamNetworkinSocketsAdapter> SteamAdapter );
+    Result<void> init( std::unique_ptr<INetworkManagerCore> core, std::shared_ptr<ISteamNetworkinSocketsAdapter> pInterface );
     void kill();
     
     HListener createListener( const char* ListenerName );
     Result<void> DestroyListener( HListener listener );
-
     Result<void> startListening( HListener listener, u_int16_t port);
     Result<void> stopListening( HListener listener );
     Result<ThreadSaveQueue<Request>*> getQueue( HListener listener, QueueType queueType);
     Result<ThreadSaveQueue<Error::ErrorValue<HTTPErrors>>*> getErrorQueue( HListener listener );
     void ConnectionServed( HSteamListenSocket socket, HSteamNetConnection connection );
-
     void runCallbacks( SteamNetConnectionStatusChangedCallback_t* pInfo ) { m_Core->callbackManager( pInfo ); }
-
 public:
     static void sOnConnectionStatusChangedCallback( SteamNetConnectionStatusChangedCallback_t* pInfo ) { NetworkManager::Get().runCallbacks( pInfo ); } 
     static void sConnectionServedCallback( HSteamListenSocket socket, HSteamNetConnection connection ) { NetworkManager::Get().ConnectionServed( socket, connection ); }
 public:
-    std::shared_ptr<ISteamNetworkinSocketsAdapter> m_pInterface;
+    //Test methoden
+    bool isThreadJoinable() const { return m_NetworkThread.joinable(); }
+    bool isRunning() const { return m_running; }
+    bool isInitialized() const { return m_initialized; }
 private:
-
     void tick();
     void run();
 
+    //refactore ohne shared pointer pls...
     template<typename Funktion>
     auto executeFunktion(Funktion&& func) ->std::invoke_result_t<Funktion>{
 
@@ -140,14 +161,15 @@ private:
 
     void notifyFunktionCall();
 private:
-    std::atomic<bool> m_running { true };
+    std::atomic<bool> m_running;
     std::atomic<bool> m_Busy { true };
     std::mutex m_ManagerMutex;
     std::condition_variable m_callbackCV;
     std::thread m_NetworkThread;
 
-
     ThreadSaveQueue<std::function<void()>> m_FunctionCalls;
-    std::unique_ptr<NetworkManagerCore> m_Core;
+    std::unique_ptr<INetworkManagerCore> m_Core;
+    std::shared_ptr<ISteamNetworkinSocketsAdapter> m_pInterface;
+    bool m_initialized = false;
 };
 }
