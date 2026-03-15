@@ -53,7 +53,7 @@ namespace http{
 
             LOG_DEBUG("Started Listening While Loop");
             while( m_listening && m_running ){
-                m_Core->pollOnce();
+                pollMessages();
 
                 std::this_thread::sleep_for(std::chrono::milliseconds(10));
             }

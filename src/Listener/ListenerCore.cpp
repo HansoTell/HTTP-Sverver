@@ -3,6 +3,8 @@
 #include "http/listener.h"
 #include <sys/types.h>
 
+//2 sachen einerseits porblem wenn init socket nach start listening aufgerufen dann kommen errors
+//--> muss auch bei networkmanager was gecleared werden
 namespace http {
 ListenerCore::ListenerCore( std::shared_ptr<ISteamNetworkinSocketsAdapter> interface, std::function<void(HSteamListenSocket, HSteamNetConnection)>  ConnectionServedCallback ) 
     : m_pInterface(interface), m_ConnectionServedCallback(std::move(ConnectionServedCallback))
@@ -45,11 +47,15 @@ Result<SocketHandlers> ListenerCore::initSocket( u_int16_t port ){
 }
 
 void ListenerCore::DestroySocket() {
-        m_pInterface->CloseListenSocket( m_Socket );
-        m_Socket = k_HSteamListenSocket_Invalid;
+    m_pInterface->CloseListenSocket( m_Socket );
+    m_Socket = k_HSteamListenSocket_Invalid;
 
-        m_pInterface->DestroyPollGroup( m_pollGroup );
-        m_pollGroup = k_HSteamNetPollGroup_Invalid;
+    m_pInterface->DestroyPollGroup( m_pollGroup );
+    m_pollGroup = k_HSteamNetPollGroup_Invalid;
+
+    m_OutgoingMessages.clear();
+    m_RecivedMessegas.clear();
+    m_ErrorQueue.clear();
 }
 
 Result<bool> ListenerCore::pollOnce(){

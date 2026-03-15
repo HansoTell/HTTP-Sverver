@@ -9,6 +9,7 @@ namespace http {
         ePollGroupHandlerInvalid,
         eInvalidSocket,
         eInvalidListener,
-        eInvalidCall
+        eInvalidCall,
+        eInvalidConnection
     };
 }

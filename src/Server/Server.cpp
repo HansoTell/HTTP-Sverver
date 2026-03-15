@@ -64,23 +64,22 @@ namespace http{
         #define REQUEST_LIMIT_PER_SESSION 100
         u_int16_t limitCounter = 0; 
 
-        auto Messages_or = NetworkManager::Get().getQueue(m_Listener, QueueType::RECEIVED);
+        auto Messages_or = NetworkManager::Get().try_PoPReceivedMessageQueue( m_Listener );
 
         //ig das wird mal error handeling
         if( Messages_or.isErr() ){
                 
         }
 
-        auto pMessages = Messages_or.value();
 
         while( limitCounter < REQUEST_LIMIT_PER_SESSION )
         {
-            std::optional<Request> msg = pMessages->try_pop();
-            if( !msg.has_value() )
+            auto Messages = Messages_or.value();
+            if( !Messages.has_value() )
                 break;
 
-            m_CPUWorkers->assignTask([this, &msg]()  {
-                this->parseRequest(std::move( msg.value() ));
+            m_CPUWorkers->assignTask([this, &Messages]()  {
+                this->parseRequest(std::move( Messages.value() ));
             });
             limitCounter++;
         }

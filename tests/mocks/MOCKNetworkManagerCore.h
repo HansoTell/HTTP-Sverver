@@ -12,11 +12,12 @@ public:
     MOCK_METHOD(http::Result<void>, DestroyListener, (HListener), (override));
     MOCK_METHOD(http::Result<void>, startListening, (HListener, u_int16_t), (override));
     MOCK_METHOD(http::Result<void>, stopListening, (HListener), (override));
-    MOCK_METHOD(http::Result<http::ThreadSaveQueue<http::Request>*>, getQueue, (HListener, http::QueueType), (override));
-    MOCK_METHOD(http::Result<http::ThreadSaveQueue<Error::ErrorValue<http::HTTPErrors>>*>, getErrorQueue, (HListener), (override));
     MOCK_METHOD(void, ConnectionServed, (HSteamListenSocket, HSteamNetConnection), (override));
     MOCK_METHOD(void, pollConnectionChanges, (), (override));
     MOCK_METHOD(void, pollFunctionCalls, (http::ThreadSaveQueue<std::function<void()>>*), (override));
     MOCK_METHOD(void, callbackManager, (SteamNetConnectionStatusChangedCallback_t*), (override));
     MOCK_METHOD(bool, isSocketClientsMapEmpty, (), (override));
+    MOCK_METHOD(http::Result<std::optional<http::Request>>, try_PoPReceivedMessageQueue, (HListener), (override));
+    MOCK_METHOD(http::Result<void>, push_OutgoingMessageQueue, (HListener, http::Request), (override));
+    MOCK_METHOD(http::Result<std::optional<Error::ErrorValue<http::HTTPErrors>>>, try_PoPErrorQueue, (HListener), (override));
 };

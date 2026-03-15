@@ -426,53 +426,7 @@ TEST_F(NetworkManagerCoreTest, StopListening_RestartListening){
     EXPECT_EQ(manager->getSocketClientsMap().at(15).m_AllConnections.size(), 0);
 }
 
-//getQueue
-TEST_F(NetworkManagerCoreTest, getQueue_InvalidListener){
-    auto res = manager->getQueue(123, http::QueueType::OUTGOING);
-
-    ASSERT_TRUE(res.isErr());
-    EXPECT_EQ(res.error().ErrorCode, http::HTTPErrors::eInvalidListener);
-}
-
-TEST_F(NetworkManagerCoreTest, getQueue_Success_Outgoing){
-    MOCKListener* pListener = nullptr;
-    setupListener(pListener);
-    HListener handler = manager->createListener("Test");
-    
-    EXPECT_CALL(*pListener, getOutgoingQueue()).WillOnce(Return(nullptr));
-    auto res = manager->getQueue(handler, http::QueueType::OUTGOING);
-    
-    EXPECT_TRUE(res.isOK());
-}
-
-TEST_F(NetworkManagerCoreTest, getQueue_Success_Received){
-    MOCKListener* pListener = nullptr;
-    setupListener(pListener);
-    HListener handler = manager->createListener("Test");
-    
-    EXPECT_CALL(*pListener, getReceivedQueue()).WillOnce(Return(nullptr));
-    auto res = manager->getQueue(handler, http::QueueType::RECEIVED);
-
-    EXPECT_TRUE(res.isOK());
-}
-
-TEST_F(NetworkManagerCoreTest, getErrorQueue_InvalidListener){
-    auto res = manager->getErrorQueue(123);
-
-    ASSERT_TRUE(res.isErr());
-    EXPECT_EQ(res.error().ErrorCode, http::HTTPErrors::eInvalidListener);
-}
-
-TEST_F(NetworkManagerCoreTest, getErrorQueue_Success){
-    MOCKListener* pListener = nullptr;
-    setupListener(pListener);
-    HListener handler = manager->createListener("Test");
-    
-    EXPECT_CALL(*pListener, getErrorQueue()).WillOnce(Return(nullptr));
-    auto res = manager->getErrorQueue(handler);
-    
-    EXPECT_TRUE(res.isOK());
-}
+//queue methoden fehlen
 
 //ConnectionServed
 TEST_F(NetworkManagerCoreTest, ConnectionServed_Success){

@@ -200,55 +200,6 @@ TEST_F(NetworkManagerTest, stopListening_InvalidListener){
     EXPECT_EQ(res.error().ErrorCode, http::HTTPErrors::eInvalidListener);
 }
 
-TEST_F(NetworkManagerTest, getQueue_success){
-    initManager();
-
-    http::ThreadSaveQueue<http::Request> queue;
-
-    EXPECT_CALL(*pCore, getQueue(12345, http::QueueType::RECEIVED)).WillOnce(Return(&queue));
-
-    auto res = manager->getQueue(12345, http::QueueType::RECEIVED);
-
-    EXPECT_TRUE(res.isOK());
-    EXPECT_EQ(res.value(), &queue);
-}
-
-TEST_F(NetworkManagerTest, getQueue_invalidListener){
-    initManager();
-
-    EXPECT_CALL(*pCore, getQueue(12345, http::QueueType::OUTGOING)).WillOnce(Return(MAKE_ERROR(http::HTTPErrors::eInvalidListener, "bsp")));
-
-    auto res = manager->getQueue(12345, http::QueueType::OUTGOING);
-
-    EXPECT_TRUE(res.isErr());
-    EXPECT_EQ(res.error().ErrorCode, http::HTTPErrors::eInvalidListener);
-}
-
-TEST_F(NetworkManagerTest, getErrorQueue_success){
-    initManager();
-
-    http::ThreadSaveQueue<Error::ErrorValue<http::HTTPErrors>> queue;
-
-    EXPECT_CALL(*pCore, getErrorQueue(12345)).WillOnce(Return(&queue)); 
-
-    auto res = manager->getErrorQueue(12345);
-
-    EXPECT_TRUE(res.isOK());
-    EXPECT_EQ(res.value(), &queue);
-}
-
-TEST_F(NetworkManagerTest, getErrorQueue_invalidListener){
-    initManager();
-
-    http::ThreadSaveQueue<Error::ErrorValue<http::HTTPErrors>> queue;
-
-    EXPECT_CALL(*pCore, getErrorQueue(12345)).WillOnce(Return(MAKE_ERROR(http::HTTPErrors::eInvalidListener, "bsp"))); 
-
-    auto res = manager->getErrorQueue(12345);
-
-    EXPECT_TRUE(res.isErr());
-    EXPECT_EQ(res.error().ErrorCode, http::HTTPErrors::eInvalidListener);
-}
 
 TEST_F(NetworkManagerTest, ConnectionServed_Succes){
     initManager();
@@ -287,6 +238,7 @@ TEST_F(NetworkManagerTest, staticConnectionServed){
     std::this_thread::sleep_for(std::chrono::milliseconds(20));
 }
 
+//getQueueMethoden fehlen
 //fehlet mhrfache belastung und vielleicht reihenfolge oder so
 
 

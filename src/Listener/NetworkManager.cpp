@@ -1,6 +1,7 @@
 #include "http/NetworkManager.h"
 
 #include "Datastrucutres/ThreadSaveQueue.h"
+#include "Error/Error.h"
 #include "Error/Errorcodes.h"
 #include "steam/steamnetworkingtypes.h"
 #include "http/HTTPinitialization.h"
@@ -10,6 +11,7 @@
 #include <cstring>
 #include <memory>
 #include <mutex>
+#include <optional>
 #include <sys/mman.h>
 #include <sys/types.h>
 #include <thread>
@@ -85,24 +87,33 @@ Result<void> NetworkManager::stopListening( HListener listener ){
     });
 }
 
-//can return invalid listener
-Result<ThreadSaveQueue<Request>*> NetworkManager::getQueue( HListener listener, QueueType queueType){
+//can return invalid Listener
+Result<std::optional<Request>> NetworkManager::try_PoPReceivedMessageQueue( HListener listener ){
     notifyFunktionCall();
 
     return executeFunktion([=](){
-        return this->m_Core->getQueue( listener, queueType );
+        return this->m_Core->try_PoPReceivedMessageQueue( listener );
     });
 }
 
-
-//can return invalid listener
-Result<ThreadSaveQueue<Error::ErrorValue<HTTPErrors>>*> NetworkManager::getErrorQueue( HListener listener ){
+//kan return invalid Listener, InvalidCall, InvalidConnection
+Result<void> NetworkManager::push_OutgoingMessageQueue( HListener listener, Request message ){
     notifyFunktionCall();
 
     return executeFunktion([=](){
-        return this->m_Core->getErrorQueue( listener );
+        return this->m_Core->push_OutgoingMessageQueue( listener, message );
     });
 }
+
+//can return invalid listener
+Result<std::optional<Error::ErrorValue<HTTPErrors>>> NetworkManager::try_PoPErrorQueue( HListener listener ){
+    notifyFunktionCall();
+
+    return executeFunktion([=](){
+        return this->m_Core->try_PoPErrorQueue( listener );
+    });
+}
+
 
 void NetworkManager::ConnectionServed( HSteamListenSocket socket, HSteamNetConnection connection ){
     notifyFunktionCall();
