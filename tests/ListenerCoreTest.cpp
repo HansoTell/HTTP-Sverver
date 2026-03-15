@@ -2,9 +2,13 @@
 #include "http/listener.h"
 #include "mocks/SteamNetworkingSocketsAdapterMock.h"
 #include "steam/steamnetworkingtypes.h"
+#include "gmock/gmock.h"
 #include <functional>
 #include <gtest/gtest.h>
 #include <memory>
+
+using ::testing::_;
+using ::testing::Return;
 
 class ListenerCoreTest : public ::testing::Test {
 protected:
@@ -32,3 +36,18 @@ protected:
         DESTROY_LOGGER();
     }
 };
+
+TEST_F(ListenerCoreTest, initSocketSuccess){
+
+    //eingabe fixen
+    EXPECT_CALL(*pMockSteam, CreateListenSocketIP(_, _, _)).WillOnce(Return(1));
+    EXPECT_CALL(*pMockSteam, CreatePollGroup()).WillOnce(Return(55));
+
+    auto res = listenerCore->initSocket(8080);
+
+    //testen wir ob internal die sockets gesetzt sind??
+    EXPECT_TRUE(res.isOK());
+    EXPECT_EQ(res.value().m_PollGroup, 55);
+    EXPECT_EQ(res.value().m_Socket, 8080);
+
+}
