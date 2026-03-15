@@ -25,11 +25,11 @@ class IListenerCore {
 public:
     virtual ~IListenerCore() = default;
     virtual Result<SocketHandlers> initSocket( u_int16_t port ) = 0;
+    virtual void DestroySocket() = 0;
     virtual Result<bool> pollOnce() = 0;
     virtual ThreadSaveQueue<Request>* getReceivedQueue() = 0;
     virtual ThreadSaveQueue<Request>* getOutgoingQueue() = 0;
     virtual ThreadSaveQueue<Error::ErrorValue<HTTPErrors>>* getErrorQueue() = 0;
-    virtual void DestroySocket() = 0;
 };
 
 
