@@ -12,6 +12,7 @@
 #include "mocks/SteamNetworkingSocketsAdapterMock.h"
 #include "gtest/gtest.h"
 #include <memory>
+#include <optional>
 #include <thread>
 #include <utility>
 
@@ -238,7 +239,17 @@ TEST_F(NetworkManagerTest, staticConnectionServed){
     std::this_thread::sleep_for(std::chrono::milliseconds(20));
 }
 
+TEST_F(NetworkManagerTest, popReceivedQueue_sccess){
+    initManager();
+
+    EXPECT_CALL(*pCore, try_PoPReceivedMessageQueue(12345)).WillOnce(Return( std::optional<http::Request>({ 222, "Test" }) ));
+
+    auto res = manager->try_PoPReceivedMessageQueue(12345);
+
+    ASSERT_TRUE(res.isOK());
+    ASSERT_TRUE(res.value().has_value());
+    EXPECT_EQ(res.value().value().m_Connection, 222);
+}
+
 //getQueueMethoden fehlen
 //fehlet mhrfache belastung und vielleicht reihenfolge oder so
-
-

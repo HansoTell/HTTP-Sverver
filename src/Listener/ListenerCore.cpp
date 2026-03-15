@@ -3,8 +3,6 @@
 #include "http/listener.h"
 #include <sys/types.h>
 
-//2 sachen einerseits porblem wenn init socket nach start listening aufgerufen dann kommen errors
-//--> muss auch bei networkmanager was gecleared werden
 namespace http {
 ListenerCore::ListenerCore( std::shared_ptr<ISteamNetworkinSocketsAdapter> interface, std::function<void(HSteamListenSocket, HSteamNetConnection)>  ConnectionServedCallback ) 
     : m_pInterface(interface), m_ConnectionServedCallback(std::move(ConnectionServedCallback))

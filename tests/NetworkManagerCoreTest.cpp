@@ -1,8 +1,10 @@
 #include "Datastrucutres/ThreadSaveQueue.h"
+#include "Error/Error.h"
 #include "Error/Errorcodes.h"
 #include "Logger/Logger.h"
 #include "http/HTTPinitialization.h"
 #include "http/NetworkManager.h"
+#include "http/Request.h"
 #include "http/listener.h"
 #include "gmock/gmock.h"
 #include <algorithm>
@@ -91,7 +93,7 @@ protected:
 
         manager->callbackManager(&info);
 
-        auto& socketInfo = manager->getSocketClientsMap().at(12345);
+        auto& socketInfo = manager->getSocketClientsMap().at(socket);
 
         EXPECT_EQ(socketInfo.m_AllConnections.size(), con);
 
@@ -426,7 +428,131 @@ TEST_F(NetworkManagerCoreTest, StopListening_RestartListening){
     EXPECT_EQ(manager->getSocketClientsMap().at(15).m_AllConnections.size(), 0);
 }
 
-//queue methoden fehlen
+//Queue methoden
+TEST_F(NetworkManagerCoreTest, ReceivedQueue_successEmptyQueue){
+    MOCKListener* pListener = nullptr;
+    HListener handler = setupListeningState(8080, pListener);
+    http::ThreadSaveQueue<http::Request> receivedQ;
+
+    EXPECT_CALL(*pListener, getReceivedQueue()).WillOnce(Return(&receivedQ));
+
+    auto res = manager->try_PoPReceivedMessageQueue(handler);
+
+    ASSERT_TRUE(res.isOK());
+    EXPECT_FALSE(res.value().has_value());
+}
+
+TEST_F(NetworkManagerCoreTest, ReceivedQueue_successNotEmptyQueue){
+    MOCKListener* pListener = nullptr;
+    HListener handler = setupListeningState(8080, pListener);
+    http::ThreadSaveQueue<http::Request> receivedQ;
+    receivedQ.push( { 222, "Request"} );
+
+    EXPECT_CALL(*pListener, getReceivedQueue()).WillOnce(Return(&receivedQ));
+
+    auto res = manager->try_PoPReceivedMessageQueue(handler);
+
+    ASSERT_TRUE(res.isOK());
+    ASSERT_TRUE(res.value().has_value());
+    EXPECT_EQ(res.value().value().m_Connection, 222);
+    EXPECT_STREQ(res.value().value().m_Message.c_str(), "Request");
+    EXPECT_EQ(receivedQ.size(), 0);
+}
+
+TEST_F(NetworkManagerCoreTest, ReceivedQueue_invalidLIstener){
+    auto res = manager->try_PoPReceivedMessageQueue(1234);
+
+    ASSERT_TRUE(res.isErr());
+    EXPECT_EQ(res.error().ErrorCode, http::HTTPErrors::eInvalidListener);
+}
+
+TEST_F(NetworkManagerCoreTest, OutgoingQueue_Success){
+    MOCKListener* pListener = nullptr;
+    HListener listener = setupListeningState(8080, pListener);
+    HSteamNetConnection con = addConnection(12345);
+    http::ThreadSaveQueue<http::Request> outgoingQ;
+    http::Request request(con, "Request");
+
+    EXPECT_CALL(*pListener, getOutgoingQueue()).WillOnce(Return(&outgoingQ));
+
+    auto res = manager->push_OutgoingMessageQueue(listener, request);
+
+    ASSERT_TRUE(res.isOK());
+    ASSERT_EQ(outgoingQ.size(), 1);
+}
+
+TEST_F(NetworkManagerCoreTest, OutgoingQueue_InvalidListener){
+    http::Request request(222, "Request");
+    
+    auto res = manager->push_OutgoingMessageQueue(123, request);
+
+    ASSERT_TRUE(res.isErr());
+    EXPECT_EQ(res.error().ErrorCode, http::HTTPErrors::eInvalidListener);
+}
+
+TEST_F(NetworkManagerCoreTest, OutgoingQueue_ConnectionNotPresent){
+    MOCKListener* pListener = nullptr;
+    HListener listener = setupListeningState(8080, pListener);
+    http::ThreadSaveQueue<http::Request> outgoingQ;
+    http::Request request(222, "Request");
+
+    EXPECT_CALL(*pListener, getOutgoingQueue()).Times(0);
+
+    auto res = manager->push_OutgoingMessageQueue(listener, request);
+
+    ASSERT_TRUE(res.isErr());
+    EXPECT_EQ(res.error().ErrorCode, http::HTTPErrors::eInvalidConnection);
+}
+
+TEST_F(NetworkManagerCoreTest, OutgoingQueue_NOtListening){
+    MOCKListener* pListener = nullptr;
+    setupListener(pListener);
+    HListener handler = manager->createListener("Test"); 
+    http::Request request(222, "Request");
+
+    EXPECT_CALL(*pListener, getOutgoingQueue()).Times(0);
+
+    auto res = manager->push_OutgoingMessageQueue(handler, request);
+
+    ASSERT_TRUE(res.isErr());
+    EXPECT_EQ(res.error().ErrorCode, http::HTTPErrors::eInvalidCall);
+}
+
+TEST_F(NetworkManagerCoreTest, ErrorQueue_successEmptyQueue){
+    MOCKListener* pListener = nullptr;
+    HListener handler = setupListeningState(8080, pListener);
+    http::ThreadSaveQueue<Error::ErrorValue<http::HTTPErrors>> errorQ;
+
+    EXPECT_CALL(*pListener, getErrorQueue()).WillOnce(Return(&errorQ));
+
+    auto res = manager->try_PoPErrorQueue(handler);
+
+    ASSERT_TRUE(res.isOK());
+    EXPECT_FALSE(res.value().has_value());
+}
+
+TEST_F(NetworkManagerCoreTest, ErrorQueue_succesNotEmptyQueue){
+    MOCKListener* pListener = nullptr;
+    HListener handler = setupListeningState(8080, pListener);
+    http::ThreadSaveQueue<Error::ErrorValue<http::HTTPErrors>> errorQ;
+    errorQ.push(MAKE_ERROR(http::HTTPErrors::eInvalidListener, "TEst"));
+
+    EXPECT_CALL(*pListener, getErrorQueue()).WillOnce(Return(&errorQ));
+
+    auto res = manager->try_PoPErrorQueue(handler);
+
+    ASSERT_TRUE(res.isOK());
+    EXPECT_TRUE(res.value().has_value());
+    EXPECT_EQ(errorQ.size(), 0);
+    EXPECT_EQ(res.value().value().ErrorCode, http::HTTPErrors::eInvalidListener);
+}
+
+TEST_F(NetworkManagerCoreTest, ErrorQueue_invalidListener){
+    auto res = manager->try_PoPErrorQueue(123);
+
+    ASSERT_TRUE(res.isErr());
+    EXPECT_EQ(res.error().ErrorCode, http::HTTPErrors::eInvalidListener);
+}
 
 //ConnectionServed
 TEST_F(NetworkManagerCoreTest, ConnectionServed_Success){

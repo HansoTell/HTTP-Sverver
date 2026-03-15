@@ -103,7 +103,6 @@ private:
 
     void Connecting( SteamNetConnectionStatusChangedCallback_t *pInfo );
     void Disconnected( SteamNetConnectionStatusChangedCallback_t *pInfo );
-
 private:
     std::unordered_map<HListener, ListenerInfo> m_Listeners;
     std::unordered_map<HSteamListenSocket, SocketInfo> m_SocketClientsMap;
