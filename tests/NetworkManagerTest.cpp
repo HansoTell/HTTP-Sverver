@@ -3,7 +3,6 @@
 #include <future>
 #include <http/NetworkManager.h>
 
-#include "Datastrucutres/ThreadSaveQueue.h"
 #include "Error/Errorcodes.h"
 #include "Logger/Logger.h"
 #include "http/HTTPinitialization.h"
@@ -251,5 +250,74 @@ TEST_F(NetworkManagerTest, popReceivedQueue_sccess){
     EXPECT_EQ(res.value().value().m_Connection, 222);
 }
 
-//getQueueMethoden fehlen
+TEST_F(NetworkManagerTest, popReceivedQueue_invalidListener){
+    initManager();
+
+    EXPECT_CALL(*pCore, try_PoPReceivedMessageQueue(12345)).WillOnce(Return(MAKE_ERROR(http::HTTPErrors::eInvalidListener, "invalidListener")));
+
+    auto res = manager->try_PoPReceivedMessageQueue(12345);
+
+    ASSERT_TRUE(res.isErr());
+    EXPECT_EQ(res.error().ErrorCode, http::HTTPErrors::eInvalidListener);
+}
+
+TEST_F(NetworkManagerTest, pushOutQ_success){
+    initManager();
+    http::Request req(222, "Req");
+
+    EXPECT_CALL(*pCore, push_OutgoingMessageQueue(12345, req)).WillOnce(Return( http::Result<void>() ));
+
+    auto res = manager->push_OutgoingMessageQueue(12345, req);
+
+    ASSERT_TRUE(res.isOK());
+}
+
+TEST_F(NetworkManagerTest, pushOutQ_invalidListener){
+    initManager();
+    http::Request req(222, "Req");
+
+    EXPECT_CALL(*pCore, push_OutgoingMessageQueue(12345, req)).WillOnce(Return(MAKE_ERROR(http::HTTPErrors::eInvalidListener, "invalidListener")));
+
+    auto res = manager->push_OutgoingMessageQueue(12345, req);
+
+    ASSERT_TRUE(res.isErr());
+    EXPECT_EQ(res.error().ErrorCode, http::HTTPErrors::eInvalidListener);
+}
+
+TEST_F(NetworkManagerTest, pushOutQ_invalidCall){
+    initManager();
+    http::Request req(222, "Req");
+
+    EXPECT_CALL(*pCore, push_OutgoingMessageQueue(12345, req)).WillOnce(Return(MAKE_ERROR(http::HTTPErrors::eInvalidCall, "invalidCall")));
+
+    auto res = manager->try_PoPReceivedMessageQueue(12345);
+
+    ASSERT_TRUE(res.isErr());
+    EXPECT_EQ(res.error().ErrorCode, http::HTTPErrors::eInvalidCall);
+}
+
+TEST_F(NetworkManagerTest, popErrorQ_success){
+    initManager();
+
+    EXPECT_CALL(*pCore, try_PoPErrorQueue(12345)).WillOnce(Return( std::optional<Error::ErrorValue<http::HTTPErrors>>( MAKE_ERROR(http::HTTPErrors::eInvalidCall, "bsp")) ));
+
+    auto res = manager->try_PoPErrorQueue(12345);
+
+    ASSERT_TRUE(res.isOK());
+    ASSERT_TRUE(res.value().has_value());
+    EXPECT_EQ(res.value().value().ErrorCode, http::HTTPErrors::eInvalidCall);
+}
+
+TEST_F(NetworkManagerTest, popErrorQ_invalidListener){
+    initManager();
+
+    EXPECT_CALL(*pCore, try_PoPErrorQueue(12345)).WillOnce(Return(MAKE_ERROR(http::HTTPErrors::eInvalidListener, "invalidListener")));
+
+    auto res = manager->try_PoPErrorQueue(12345);
+
+    ASSERT_TRUE(res.isErr());
+    EXPECT_EQ(res.error().ErrorCode, http::HTTPErrors::eInvalidListener);
+}
+
+
 //fehlet mhrfache belastung und vielleicht reihenfolge oder so

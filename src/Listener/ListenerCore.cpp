@@ -1,6 +1,7 @@
 #include "Error/Errorcodes.h"
 #include "http/HTTPinitialization.h"
 #include "http/listener.h"
+#include "steam/steamnetworkingtypes.h"
 #include <sys/types.h>
 
 namespace http {
@@ -13,6 +14,9 @@ ListenerCore::ListenerCore( std::shared_ptr<ISteamNetworkinSocketsAdapter> inter
 ListenerCore::~ListenerCore() {}
 
 Result<SocketHandlers> ListenerCore::initSocket( u_int16_t port ){
+
+    if( m_Socket != k_HSteamListenSocket_Invalid || m_pollGroup != k_HSteamNetPollGroup_Invalid )
+        return MAKE_ERROR(HTTPErrors::eInvalidCall, "A Socket is initialized try Calling DestroySocket first");
 
     SteamNetworkingIPAddr address;
     address.Clear();
@@ -88,6 +92,7 @@ Result<bool> ListenerCore::pollIncMessages() {
     Request message;
 
     message.m_Message.assign((const char*) pIncMessage->m_pData, pIncMessage->m_cbSize);
+    message.m_Connection = pIncMessage->GetConnection();
 
     m_RecivedMessegas.push(std::move(message));
 
