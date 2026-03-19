@@ -4,6 +4,7 @@
 #include "http/listener.h"
 #include "mocks/SteamNetworkingSocketsAdapterMock.h"
 #include "steam/isteamnetworkingutils.h"
+#include "steam/steamclientpublic.h"
 #include "steam/steamnetworkingtypes.h"
 #include "gmock/gmock.h"
 #include <cstring>
@@ -96,7 +97,7 @@ TEST_F(ListenerCoreTest, initSocket_doubleCall){
     auto res2 = listenerCore->initSocket(8090);
 
     ASSERT_TRUE(res2.isErr());
-    EXPECT_EQ(res.error().ErrorCode, http::HTTPErrors::eInvalidCall);
+    EXPECT_EQ(res2.error().ErrorCode, http::HTTPErrors::eInvalidCall);
 }
 //DestroySocket
 TEST_F(ListenerCoreTest, DestroySocket_success){
@@ -172,13 +173,13 @@ TEST_F(ListenerCoreTest, pollOnce_onlyOutMessage){
     http::Request req(222, "Request");
     const char* msg_c = req.m_Message.c_str();
     outQ->push(std::move(req));
-    EXPECT_CALL(*pMockSteam, SendMessageToConnection(222, &msg_c, (u_int32_t)strlen(msg_c), k_nSteamNetworkingSend_Reliable, nullptr)).Times(0);
+    EXPECT_CALL(*pMockSteam, SendMessageToConnection(222, _, 7, k_nSteamNetworkingSend_Reliable, nullptr)).WillOnce(Return(k_EResultOK));
 
     auto res = listenerCore->pollOnce();
 
     ASSERT_TRUE(res.isOK());
     EXPECT_TRUE(res.value());
-    EXPECT_EQ(counter, 0);
+    EXPECT_EQ(counter, 1);
     EXPECT_TRUE(outQ->empty());
     EXPECT_TRUE(inQ->empty());
 }
@@ -201,9 +202,8 @@ TEST_F(ListenerCoreTest, pollOnce_bothPolled){
 
     //pollOutMessage
     http::Request req(222, "Request");
-    const char* msg_c = req.m_Message.c_str();
     outQ->push(std::move(req));
-    EXPECT_CALL(*pMockSteam, SendMessageToConnection(222, &msg_c, (u_int32_t)strlen(msg_c), k_nSteamNetworkingSend_Reliable, nullptr)).Times(0);
+    EXPECT_CALL(*pMockSteam, SendMessageToConnection(222, _, 7, k_nSteamNetworkingSend_Reliable, nullptr)).WillOnce(Return(k_EResultOK));
 
     auto res = listenerCore->pollOnce();
 

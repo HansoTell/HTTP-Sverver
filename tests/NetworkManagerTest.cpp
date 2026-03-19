@@ -290,7 +290,7 @@ TEST_F(NetworkManagerTest, pushOutQ_invalidCall){
 
     EXPECT_CALL(*pCore, push_OutgoingMessageQueue(12345, req)).WillOnce(Return(MAKE_ERROR(http::HTTPErrors::eInvalidCall, "invalidCall")));
 
-    auto res = manager->try_PoPReceivedMessageQueue(12345);
+    auto res = manager->push_OutgoingMessageQueue(12345, req);
 
     ASSERT_TRUE(res.isErr());
     EXPECT_EQ(res.error().ErrorCode, http::HTTPErrors::eInvalidCall);
