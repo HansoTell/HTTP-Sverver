@@ -30,6 +30,8 @@ public:
     virtual ThreadSaveQueue<Request>* getReceivedQueue() = 0;
     virtual ThreadSaveQueue<Request>* getOutgoingQueue() = 0;
     virtual ThreadSaveQueue<Error::ErrorValue<HTTPErrors>>* getErrorQueue() = 0;
+    virtual HSteamListenSocket getSocketHandler() const = 0;
+    virtual HSteamNetPollGroup getPollGroup() const = 0;
 };
 
 
@@ -37,7 +39,7 @@ class IListener {
 public:
     virtual ~IListener() = default;
     virtual Result<SocketHandlers> initSocket( u_int16_t port ) = 0;
-    virtual void startListening() = 0;
+    virtual Result<void> startListening() = 0;
     virtual void stopListening() = 0;
 
     virtual ThreadSaveQueue<Request>* getReceivedQueue() = 0;
@@ -53,6 +55,8 @@ public:
     ThreadSaveQueue<Request>* getReceivedQueue() override { return &m_RecivedMessegas; }
     ThreadSaveQueue<Request>* getOutgoingQueue() override { return &m_OutgoingMessages; }
     ThreadSaveQueue<Error::ErrorValue<HTTPErrors>>* getErrorQueue() override { return &m_ErrorQueue; }
+    HSteamListenSocket getSocketHandler() const override { return m_Socket; }
+    HSteamNetPollGroup getPollGroup() const override { return m_pollGroup; }
 public:
     ListenerCore( std::shared_ptr<ISteamNetworkinSocketsAdapter> interface, std::function<void(HSteamListenSocket, HSteamNetConnection)>  ConnectionServedCallback );
     ListenerCore(const ListenerCore& other) = delete;
@@ -78,8 +82,8 @@ private:
 
 class Listener : public IListener {
 public:
-    Result<SocketHandlers> initSocket( u_int16_t port ) override { return m_Core->initSocket( port ); }
-    void startListening() override;
+    Result<SocketHandlers> initSocket( u_int16_t port ) override; 
+    Result<void> startListening() override;
     void stopListening() override;
 
     ThreadSaveQueue<Request>* getReceivedQueue() override { return m_Core->getReceivedQueue(); }

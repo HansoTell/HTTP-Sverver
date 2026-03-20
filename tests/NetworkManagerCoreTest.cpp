@@ -178,7 +178,7 @@ TEST_F(NetworkManagerCoreTest, StartListening_Success){
     fakeHandlers.m_PollGroup = 55;
 
     EXPECT_CALL(*pListener, initSocket(8080)).WillOnce(Return(http::Result<http::SocketHandlers>(fakeHandlers)));
-    EXPECT_CALL(*pListener, startListening()).Times(1);
+    EXPECT_CALL(*pListener, startListening()).WillOnce(Return(http::Result<void>()));
 
     auto result = manager->startListening(handler, 8080);
 
@@ -419,7 +419,7 @@ TEST_F(NetworkManagerCoreTest, StopListening_RestartListening){
     fakeHandlers.m_PollGroup = 55;
 
     EXPECT_CALL(*pListener, initSocket(8080)).WillOnce(Return(http::Result<http::SocketHandlers>(fakeHandlers)));
-    EXPECT_CALL(*pListener, startListening()).Times(1);
+    EXPECT_CALL(*pListener, startListening()).WillOnce(Return(http::Result<void>()));
 
     auto res = manager->startListening(handler, 8080);
 

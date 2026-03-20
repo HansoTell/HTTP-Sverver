@@ -1,10 +1,13 @@
 #include "http/listener.h"
 
+#include "Error/Errorcodes.h"
 #include "Logger/Logger.h"
+#include "http/HTTPinitialization.h"
 
 #include <chrono>
 #include <cstring>
 #include <memory>
+#include <sys/types.h>
 
 namespace http{
     Listener::Listener( std::unique_ptr<IListenerCore> core ) 
@@ -25,10 +28,20 @@ namespace http{
         m_Core.reset(nullptr);
     }
 
-    void Listener::startListening(){
+    Result<SocketHandlers> Listener::initSocket ( u_int16_t port ) {
+        if( m_listening )
+            return MAKE_ERROR(HTTPErrors::eInvalidCall, "Called Init Socket while listening try calling stopListening first");
+
+        return m_Core->initSocket( port );
+    }
+
+    Result<void> Listener::startListening(){
+
         std::lock_guard<std::mutex> _lock (m_ListenMutex);
         m_listening = true;
         m_ListenCV.notify_one();
+        
+        return {};
     }
 
     void Listener::stopListening () {

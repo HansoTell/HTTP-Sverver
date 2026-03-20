@@ -1,6 +1,7 @@
 #pragma once
 
 #include "http/listener.h"
+#include "steam/steamnetworkingtypes.h"
 #include "gmock/gmock.h"
 #include <gmock/gmock.h>
 #include <sys/types.h>
@@ -13,6 +14,8 @@ public:
     MOCK_METHOD(http::ThreadSaveQueue<http::Request>*, getReceivedQueue, (), (override));
     MOCK_METHOD(http::ThreadSaveQueue<http::Request>*, getOutgoingQueue, (), (override));
     MOCK_METHOD(http::ThreadSaveQueue<Error::ErrorValue<http::HTTPErrors>>*, getErrorQueue, (), (override));
+    MOCK_METHOD(HSteamListenSocket, getSocketHandler, (), (const, override));
+    MOCK_METHOD(HSteamNetPollGroup, getPollGroup, (), (const, override));
 };
 
 
