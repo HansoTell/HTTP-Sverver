@@ -91,6 +91,18 @@ TEST_F(ListenerTest, startListeningSuccess){
 
 TEST_F(ListenerTest, startListening_noInitSocketCall){
     EXPECT_CALL(*pCore, getSocketHandler()).WillOnce(Return(k_HSteamListenSocket_Invalid));
+    EXPECT_CALL(*pCore, getPollGroup()).Times(0);
+
+    EXPECT_CALL(*pCore, pollOnce()).Times(0);
+
+    auto res = listener->startListening();
+
+    ASSERT_TRUE(res.isErr());
+    EXPECT_EQ(res.error().ErrorCode, http::HTTPErrors::eInvalidCall);
+}
+
+TEST_F(ListenerTest, startListening_noInitSocketCall2){
+    EXPECT_CALL(*pCore, getSocketHandler()).WillOnce(Return(1));
     EXPECT_CALL(*pCore, getPollGroup()).WillOnce(Return(k_HSteamNetPollGroup_Invalid));
 
     EXPECT_CALL(*pCore, pollOnce()).Times(0);
