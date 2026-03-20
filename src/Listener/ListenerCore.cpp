@@ -40,6 +40,8 @@ Result<SocketHandlers> ListenerCore::initSocket( u_int16_t port ){
     m_pollGroup = m_pInterface->CreatePollGroup();
 
     if( m_pollGroup == k_HSteamNetPollGroup_Invalid ){
+        m_pInterface->CloseListenSocket(m_Socket);
+        m_Socket = k_HSteamListenSocket_Invalid;
         auto error = MAKE_ERROR(HTTPErrors::ePollingGroupInitializationFailed, "Failed to initialize Polling Group");
         LOG_VERROR(error, "On Port" , port);
         return error; 
@@ -109,9 +111,11 @@ bool ListenerCore::pollOutMessages() {
         return false;
 
     Request& OutMessage = OutMessage_opt.value();
+    if ( OutMessage.m_Message.size() == 0 )
+        return true;
 
     const char* msg_c = OutMessage.m_Message.c_str();
-    m_pInterface->SendMessageToConnection(OutMessage.m_Connection, &msg_c, (u_int32_t)strlen(msg_c), k_nSteamNetworkingSend_Reliable, nullptr);
+    m_pInterface->SendMessageToConnection(OutMessage.m_Connection, msg_c, (u_int32_t)OutMessage.m_Message.size(), k_nSteamNetworkingSend_Reliable, nullptr);
 
     m_ConnectionServedCallback(m_Socket, OutMessage.m_Connection);
 

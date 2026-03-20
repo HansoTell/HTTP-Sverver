@@ -3,6 +3,7 @@
 #include "Error/Errorcodes.h"
 #include "Logger/Logger.h"
 #include "http/HTTPinitialization.h"
+#include "steam/steamnetworkingtypes.h"
 
 #include <chrono>
 #include <cstring>
@@ -36,6 +37,8 @@ namespace http{
     }
 
     Result<void> Listener::startListening(){
+        if( m_Core->getSocketHandler() == k_HSteamListenSocket_Invalid || m_Core->getPollGroup() == k_HSteamNetPollGroup_Invalid )
+            return MAKE_ERROR(http::eInvalidCall, "StartListening called while Sockets invalid. Try calling initSocketfirst");
 
         std::lock_guard<std::mutex> _lock (m_ListenMutex);
         m_listening = true;
