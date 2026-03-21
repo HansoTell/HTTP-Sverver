@@ -4,7 +4,9 @@
 #include "steam/steamnetworkingtypes.h"
 
 #include "gmock/gmock.h"
+#include <cstring>
 #include <gmock/gmock.h>
+#include <vector>
 
 
 class MOCKSteamNetworkingSockets : public http::ISteamNetworkinSocketsAdapter  { 
@@ -21,4 +23,25 @@ public:
     MOCK_METHOD(bool, CloseListenSocket, (HSteamListenSocket hSocket), (override));
     MOCK_METHOD(bool, DestroyPollGroup, (HSteamNetPollGroup), (override));
     MOCK_METHOD(bool, SetGlobalCallback_SteamNetConnectionStatusChanged, (FnSteamNetConnectionStatusChanged), (override));
+};
+
+class FakeSteamNetowrkingMessage : public SteamNetworkingMessage_t {
+public:
+    std::vector<char> buff;
+
+    FakeSteamNetowrkingMessage(const char* msg, HSteamNetConnection con){
+        buff.assign(msg, msg + strlen(msg));
+
+        m_pData = buff.data();
+        m_cbSize = buff.size();
+        m_conn = con;
+
+        m_pfnRelease = [](SteamNetworkingMessage_t* msg){
+            delete static_cast<FakeSteamNetowrkingMessage*>(msg);
+        };
+
+        m_pfnFreeData = nullptr;
+    }
+
+    ~FakeSteamNetowrkingMessage() = default;
 };

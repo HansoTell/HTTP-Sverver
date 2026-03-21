@@ -2,6 +2,7 @@
 #include "http/HTTPinitialization.h"
 #include "http/listener.h"
 #include "steam/steamnetworkingtypes.h"
+#include <iostream>
 #include <sys/types.h>
 
 namespace http {

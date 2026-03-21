@@ -15,7 +15,7 @@ using ::testing::Return;
 
 class ListenerTest : public ::testing::Test {
 protected:
-    http::Listener* listener;
+    std::unique_ptr<http::Listener> listener;
     std::unique_ptr<MOCKListenerCore> Core;
     MOCKListenerCore* pCore;
 
@@ -25,18 +25,17 @@ protected:
         Core = std::make_unique<MOCKListenerCore>();
         pCore = Core.get();
 
-        listener = new http::Listener(std::move(Core));
+        listener = std::make_unique<http::Listener>(std::move(Core));
 
         ON_CALL(*pCore, pollOnce()).WillByDefault(Return(true));
     }
     void TearDown() override {
-        delete listener;
         DESTROY_LOGGER();
     } 
 };
 
 //initSocket
-TEST_F(ListenerTest, initSocket_success){
+TEST_F(ListenerTest, initSocket_success_returnNoError){
     http::SocketHandlers socket {1, 55};
     EXPECT_CALL(*pCore, initSocket(8080)).WillOnce(Return(socket));
 
@@ -47,7 +46,7 @@ TEST_F(ListenerTest, initSocket_success){
     EXPECT_EQ(res.value().m_PollGroup, 55);
 }
 
-TEST_F(ListenerTest, initSocket_fails){
+TEST_F(ListenerTest, initSocket_fails_ReturnsInvalidCallError){
     EXPECT_CALL(*pCore, initSocket(8080)).WillOnce(Return(MAKE_ERROR(http::HTTPErrors::eInvalidCall, "invalidCall")));
 
     auto res = listener->initSocket(8080);
@@ -56,7 +55,7 @@ TEST_F(ListenerTest, initSocket_fails){
     EXPECT_EQ(res.error().ErrorCode, http::HTTPErrors::eInvalidCall);
 }
 
-TEST_F(ListenerTest, initSocketCalledwhileListening){
+TEST_F(ListenerTest, initSocket_CalledwhileListening_ReturnsInvalidCallError){
     http::SocketHandlers socket {1, 55};
     EXPECT_CALL(*pCore, initSocket(8080)).WillOnce(Return(socket));
 
@@ -78,7 +77,7 @@ TEST_F(ListenerTest, initSocketCalledwhileListening){
 }
 
 //startListening
-TEST_F(ListenerTest, startListeningSuccess){
+TEST_F(ListenerTest, startListening_Success_returnNoError){
     EXPECT_CALL(*pCore, getSocketHandler()).WillOnce(Return(1));
     EXPECT_CALL(*pCore, getPollGroup()).WillOnce(Return(55));
 
@@ -89,7 +88,7 @@ TEST_F(ListenerTest, startListeningSuccess){
     ASSERT_TRUE(res.isOK());
 }
 
-TEST_F(ListenerTest, startListening_noInitSocketCall){
+TEST_F(ListenerTest, startListening_InvalidSocketHandler_ReturnsInvalidCallError){
     EXPECT_CALL(*pCore, getSocketHandler()).WillOnce(Return(k_HSteamListenSocket_Invalid));
     EXPECT_CALL(*pCore, getPollGroup()).Times(0);
 
@@ -101,7 +100,7 @@ TEST_F(ListenerTest, startListening_noInitSocketCall){
     EXPECT_EQ(res.error().ErrorCode, http::HTTPErrors::eInvalidCall);
 }
 
-TEST_F(ListenerTest, startListening_noInitSocketCall2){
+TEST_F(ListenerTest, startListening_PollGroupInvalid_ReturnInvalidCallError){
     EXPECT_CALL(*pCore, getSocketHandler()).WillOnce(Return(1));
     EXPECT_CALL(*pCore, getPollGroup()).WillOnce(Return(k_HSteamNetPollGroup_Invalid));
 
@@ -113,7 +112,7 @@ TEST_F(ListenerTest, startListening_noInitSocketCall2){
     EXPECT_EQ(res.error().ErrorCode, http::HTTPErrors::eInvalidCall);
 }
 //stopListening
-TEST_F(ListenerTest, stopListening_whileListening){
+TEST_F(ListenerTest, stopListening_whileListening_succeedes){
     EXPECT_CALL(*pCore, getSocketHandler()).WillOnce(Return(1));
     EXPECT_CALL(*pCore, getPollGroup()).WillOnce(Return(55));
 
@@ -126,7 +125,7 @@ TEST_F(ListenerTest, stopListening_whileListening){
     EXPECT_CALL(*pCore, pollOnce()).Times(0);
 }
 
-TEST_F(ListenerTest, stopListening_withoutListening){
+TEST_F(ListenerTest, stopListening_withoutListening_showsNoReaction){
     EXPECT_CALL(*pCore, pollOnce()).Times(0);
     EXPECT_NO_THROW(listener->stopListening());
 }
