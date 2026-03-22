@@ -20,13 +20,14 @@ namespace http{
 
     Listener::~Listener(){
         m_running = false;
-        stopListening();
+        m_ListenCV.notify_one();
 
         if( m_ListenThread.joinable() )
             m_ListenThread.join();
         LOG_INFO("Stopped Listening Thread");
 
         m_Core.reset(nullptr);
+
     }
 
     Result<SocketHandlers> Listener::initSocket ( u_int16_t port ) {
@@ -76,6 +77,8 @@ namespace http{
             LOG_DEBUG("Left Listening while Loop");
 
             m_Core->DestroySocket();
+            
+            _lock.lock();
         }
     }
 
@@ -85,7 +88,7 @@ namespace http{
         {
             auto polledSmthing = m_Core->pollOnce();
             if( polledSmthing.isErr() ){
-                m_listening = false;
+                stopListening();
                 break;
             }
                 

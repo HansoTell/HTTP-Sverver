@@ -45,6 +45,7 @@ public:
     virtual ThreadSaveQueue<Request>* getReceivedQueue() = 0;
     virtual ThreadSaveQueue<Request>* getOutgoingQueue() = 0;
     virtual ThreadSaveQueue<Error::ErrorValue<HTTPErrors>>* getErrorQueue() = 0;
+    virtual bool isListening() = 0;
 };
 
 class ListenerCore : public IListenerCore{
@@ -89,6 +90,7 @@ public:
     ThreadSaveQueue<Request>* getReceivedQueue() override { return m_Core->getReceivedQueue(); }
     ThreadSaveQueue<Request>* getOutgoingQueue() override { return m_Core->getOutgoingQueue(); }
     ThreadSaveQueue<Error::ErrorValue<HTTPErrors>>* getErrorQueue() override { return m_Core->getErrorQueue(); }
+    bool isListening() override { return m_listening; }
 public:
     Listener( std::unique_ptr<IListenerCore> core );
     Listener(const Listener& other) = delete;

@@ -3,6 +3,7 @@
 #include "http/Request.h"
 #include "http/listener.h"
 #include "mocks/SteamNetworkingSocketsAdapterMock.h"
+#include "mocks/Test_Constants.h"
 #include "steam/steamclientpublic.h"
 #include "steam/steamnetworkingtypes.h"
 #include "gmock/gmock.h"
@@ -14,10 +15,6 @@
 #include <sys/poll.h>
 #include <sys/types.h>
 
-#define TEST_HSOCK 1
-#define TEST_HPOLLGROUP 55
-#define TEST_HCONNECTION 222
-#define TEST_PORT 8080
 
 using ::testing::_;
 using ::testing::Return;
