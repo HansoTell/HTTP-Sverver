@@ -1,6 +1,7 @@
 #pragma once
 
-#define TEST_HSOCK 1
+#define TEST_HSOCK 12345
+#define TEST_HINVALIDLISTENER 1234
 #define TEST_HPOLLGROUP 55
 #define TEST_HCONNECTION 222
 #define TEST_PORT 8080

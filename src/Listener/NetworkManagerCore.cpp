@@ -69,7 +69,7 @@ Result<void> NetworkManagerCore::startListening( HListener listener, u_int16_t p
     
     ListenerInfo& info = m_Listeners.at(listener);
 
-    if( info.m_Socket != k_HSteamListenSocket_Invalid || info.m_Socket != k_HSteamNetPollGroup_Invalid )
+    if( info.m_Socket != k_HSteamListenSocket_Invalid )
         return MAKE_ERROR(HTTPErrors::eInvalidCall, "Already Listening on this Scoket -> Socket/Pollgroup Valid" );
 
     auto result = info.m_Listener->initSocket( port );
@@ -82,7 +82,10 @@ Result<void> NetworkManagerCore::startListening( HListener listener, u_int16_t p
 
     m_SocketClientsMap.emplace(info.m_Socket, SocketInfo(SocketHandlers.m_PollGroup) );
 
-    info.m_Listener->startListening(); 
+    auto listenerRes = info.m_Listener->startListening(); 
+
+    if( listenerRes.isErr() )
+        return MAKE_ERROR(listenerRes.error().ErrorCode, listenerRes.error().Message);
     
     LOG_VINFO("Started Listening on Port", port);
 
@@ -278,6 +281,8 @@ void NetworkManagerCore::pollConnectionChanges(){
 
 #define MAX_FUNCTIONS_PER_SESSION 20 
 void NetworkManagerCore::pollFunctionCalls( ThreadSaveQueue<std::function<void()>>* functionQueue ){
+    assert(functionQueue != nullptr);
+
     u_int16_t counter = 0;
     while( !functionQueue->empty() && counter < MAX_FUNCTIONS_PER_SESSION ) {
         auto funk_opt = functionQueue->try_pop();
