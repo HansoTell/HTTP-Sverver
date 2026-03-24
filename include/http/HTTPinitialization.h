@@ -11,7 +11,6 @@
 #include "steam/steamnetworkingtypes.h"
 
 
-#define MAKE_ERROR(code, message) ::Error::make_error<http::HTTPErrors>(code, message) 
 
 namespace http{
 

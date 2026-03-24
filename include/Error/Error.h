@@ -1,23 +1,30 @@
 #pragma once
 
+#include <cstring>
 #include <functional>
-#include <string_view>
+#include <sstream>
+#include <sys/types.h>
 #include <type_traits>
+#include <utility>
 #include <variant>
 #include <optional>
 #include <iostream>
 
 #define CURRENT_LOCATION ::Error::SourceLocation{ __FILE__, __func__, __LINE__ }
 
+#define MAKE_ERROR(code, msg) ::Error::make_error(code, msg, CURRENT_LOCATION)
+#define MAKE_ERROR_FMT(code, fmt, ...) ::Error::make_error_fmt(code, CURRENT_LOCATION ,fmt, __VA_ARGS__)
+#define COPY_ERROR(errVal) ::Error::copy_error(errVal)
+
 namespace Error {
 
     struct SourceLocation {
-        const char* File;
-        const char* Function;
-        int line;
+        const char* file;
+        const char* function;
+        u_int32_t line;
     };
 
-    inline std::ostream& operator<<(std::ostream& os, const SourceLocation& location){ return os << location.File << ":" << location.line << " " << location.Function; }
+    inline std::ostream& operator<<(std::ostream& os, const SourceLocation& location){ return os << location.file << ":" << location.line << " " << location.function; }
 
     template<typename E> 
     struct ErrorValue
@@ -25,14 +32,14 @@ namespace Error {
         static_assert(std::is_enum_v<E>, "Error code musst be an enum Type");
 
         E ErrorCode;
-        std::string_view Message;
+        std::string Message;
         SourceLocation Location;
 
         std::string toLog() const { 
             std::string ErrorString;
             ErrorString.reserve(128);    
             ErrorString.append("Error Occured with ErrorCode: ").append(std::to_string(static_cast<int> (ErrorCode)))
-                        .append(" in ").append(Location.File).append(":").append(std::to_string(Location.line)).append(" ").append(Location.Function)
+                        .append(" in ").append(Location.file).append(":").append(std::to_string(Location.line)).append(" ").append(Location.function)
                         .append(" With Message: ").append(Message);
             return ErrorString;
         }
@@ -48,9 +55,28 @@ namespace Error {
 
 
     template<typename E>
-    ErrorValue<E> make_error(E code, std::string_view msg){
-        return { code, msg, CURRENT_LOCATION };
+    ErrorValue<E> make_error(E code, std::string msg, SourceLocation loc){
+        return { code, std::move(msg), loc };
     }
+
+    template<typename E, typename... Args>
+    ErrorValue<E> make_error_fmt(E code, SourceLocation loc,Args&&... args){
+        std::ostringstream oss;
+        (oss << ... << args);
+
+        return { code, oss.str(), loc };
+    }
+    
+    template<typename E>
+    ErrorValue<E>  copy_error(const ErrorValue<E>& errVal){
+        ErrorValue<E>newErr {};
+        newErr.ErrorCode = errVal.ErrorCode;
+        newErr.Message = std::move(errVal.Message);
+        newErr.Location = errVal.Location;
+        
+        return newErr;
+    }
+
 
     template<typename T, typename E>
     class Result {
