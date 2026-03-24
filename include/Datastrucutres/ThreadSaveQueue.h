@@ -51,6 +51,14 @@ public:
         m_Queue.pop();
         return  item;
     }
+
+    void clear() {
+        std::lock_guard<std::mutex> _lock(m_QueueMutex);
+        while ( !m_Queue.empty() ) 
+        {
+            m_Queue.pop();
+        }
+    }
 public:
     ThreadSaveQueue() {}
     ThreadSaveQueue(const ThreadSaveQueue& other) = delete;

@@ -1,40 +1,51 @@
 #include "http/listener.h"
 
+#include "Error/Errorcodes.h"
 #include "Logger/Logger.h"
 #include "http/HTTPinitialization.h"
 #include "steam/steamnetworkingtypes.h"
 
 #include <chrono>
 #include <cstring>
-#include <functional>
-#include <optional>
-#include <utility>
-
+#include <memory>
+#include <sys/types.h>
 
 namespace http{
-    Listener::Listener( std::shared_ptr<ISteamNetworkinSocketsAdapter> interface, std::function<void(HSteamListenSocket, HSteamNetConnection)>  ConnectionServedCallback) 
-            : m_pInterface(interface), m_listening(false), m_running(true), m_ConnectionServedCallback(ConnectionServedCallback){
-        assert(m_pInterface != nullptr);
+    Listener::Listener( std::unique_ptr<IListenerCore> core ) 
+            : m_listening(false), m_running(true), m_Core(std::move(core)){
         
         LOG_INFO("Started Listening Thread");
-        m_ListenThread = std::thread([this](){ this->listen(); }); 
+        m_ListenThread = std::thread([this](){ this->run(); }); 
     }
 
     Listener::~Listener(){
         m_running = false;
-        m_ListenCV.notify_all();
+        m_ListenCV.notify_one();
 
         if( m_ListenThread.joinable() )
             m_ListenThread.join();
         LOG_INFO("Stopped Listening Thread");
+
+        m_Core.reset(nullptr);
+
     }
 
-    void Listener::startListening(){
-        
+    Result<SocketHandlers> Listener::initSocket ( u_int16_t port ) {
+        if( m_listening )
+            return MAKE_ERROR(HTTPErrors::eInvalidCall, "Called Init Socket while listening try calling stopListening first");
+
+        return m_Core->initSocket( port );
+    }
+
+    Result<void> Listener::startListening(){
+        if( m_Core->getSocketHandler() == k_HSteamListenSocket_Invalid || m_Core->getPollGroup() == k_HSteamNetPollGroup_Invalid )
+            return MAKE_ERROR(http::eInvalidCall, "StartListening called while Sockets invalid. Try calling initSocketfirst");
+
         std::lock_guard<std::mutex> _lock (m_ListenMutex);
         m_listening = true;
         m_ListenCV.notify_one();
-
+        
+        return {};
     }
 
     void Listener::stopListening () {
@@ -44,39 +55,7 @@ namespace http{
         LOG_INFO("Stopped Listening");
     }
 
-    Result<SocketHandlers> Listener::initSocket( u_int16_t port ){
-
-        SteamNetworkingIPAddr address;
-        address.Clear();
-        address.m_port = port;
-
-        //Set initial Options
-        int numOptions = 2;
-        SteamNetworkingConfigValue_t options[numOptions];
-        options[0].SetInt32(k_ESteamNetworkingConfig_TimeoutInitial, 5000);
-        options[1].SetInt32(k_ESteamNetworkingConfig_TimeoutConnected, 5000);
-
-
-        m_Socket = m_pInterface->CreateListenSocketIP(address, numOptions, options);
-
-        if( m_Socket == k_HSteamListenSocket_Invalid){
-            auto error = MAKE_ERROR(HTTPErrors::eSocketInitializationFailed, "Failed to initialize Socket");             
-            LOG_VERROR(error, "On Port", port);
-            return error; 
-        }
-
-        m_pollGroup = m_pInterface->CreatePollGroup();
-
-        if( m_pollGroup == k_HSteamNetPollGroup_Invalid ){
-            auto error = MAKE_ERROR(HTTPErrors::ePollingGroupInitializationFailed, "Failed to initialize Polling Group");
-            LOG_VERROR(error, "On Port" , port);
-            return error; 
-        }
-
-        return Result<SocketHandlers> ( { m_Socket, m_pollGroup } );
-    }
-
-    void Listener::listen(){
+    void Listener::run(){
         std::unique_lock<std::mutex> _lock (m_ListenMutex); 
         while ( m_running )
         {
@@ -90,88 +69,30 @@ namespace http{
                 break;
 
             LOG_DEBUG("Started Listening While Loop");
-            while( m_listening ){
-                pollOutMessages();
-                pollIncMessages();
+            while( m_listening && m_running ){
+                pollMessages();
 
                 std::this_thread::sleep_for(std::chrono::milliseconds(10));
             }
             LOG_DEBUG("Left Listening while Loop");
 
-            DestroySocket();
+            m_Core->DestroySocket();
+            
+            _lock.lock();
         }
     }
 
-
-    #define MAX_MESSAGES_PER_SESSION 100
-    void Listener::pollIncMessages(){
-
-        int messages_recived_counter = 0;
-
-        while( messages_recived_counter < MAX_MESSAGES_PER_SESSION ){
-
-            if( !m_listening || !m_running )
-                break;
-            
-            SteamNetworkingMessage_t* pIncMessage = nullptr;
-
-            int message_Recived = m_pInterface->ReceiveMessagesOnPollGroup(m_pollGroup, &pIncMessage, 1);
-
-            if( message_Recived == 0 )
-                break;
-
-            if( message_Recived < 0 ){
-
-                auto err = MAKE_ERROR(HTTPErrors::ePollGroupHandlerInvalid, "PollGroup Handler invalid on trying to recive Messages");
-                LOG_VERROR(err);
-                m_ErrorQueue.push(err);
-
-                m_listening = false;
+    void Listener::pollMessages(){
+        bool pollingSuccesfull = true;
+        while( pollingSuccesfull && m_listening && m_running )
+        {
+            auto polledSmthing = m_Core->pollOnce();
+            if( polledSmthing.isErr() ){
+                stopListening();
                 break;
             }
-
-            Request message;
-
-            message.m_Message.assign((const char*) pIncMessage->m_pData, pIncMessage->m_cbSize);
-
-            m_RecivedMessegas.push(std::move(message));
-
-            pIncMessage->Release();            
-
-            messages_recived_counter++;
+                
+            pollingSuccesfull = polledSmthing.value();        
         }
-    }
-
-    void Listener::pollOutMessages(){
-
-        int messages_send_counter = 0;
-        
-        while( messages_send_counter < MAX_MESSAGES_PER_SESSION ){
-
-            if( !m_listening || !m_running )
-                break;
-
-            std::optional<Request> OutMessage_opt = m_OutgoingMessages.try_pop();        
-
-            if( !OutMessage_opt.has_value() )
-                break;
-
-            Request& OutMessage = OutMessage_opt.value();
-
-            const char* msg_c = OutMessage.m_Message.c_str();
-            m_pInterface->SendMessageToConnection(OutMessage.m_Connection, &msg_c, (u_int32_t)strlen(msg_c), k_nSteamNetworkingSend_Reliable, nullptr);
-
-            m_ConnectionServedCallback(m_Socket, OutMessage.m_Connection);
-        }
-
-    }
-
-    void Listener::DestroySocket(){
-
-        m_pInterface->CloseListenSocket( m_Socket );
-        m_Socket = k_HSteamListenSocket_Invalid;
-
-        m_pInterface->DestroyPollGroup( m_pollGroup );
-        m_pollGroup = k_HSteamNetPollGroup_Invalid;
     }
 }

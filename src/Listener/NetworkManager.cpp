@@ -1,6 +1,7 @@
 #include "http/NetworkManager.h"
 
 #include "Datastrucutres/ThreadSaveQueue.h"
+#include "Error/Error.h"
 #include "Error/Errorcodes.h"
 #include "steam/steamnetworkingtypes.h"
 #include "http/HTTPinitialization.h"
@@ -10,6 +11,7 @@
 #include <cstring>
 #include <memory>
 #include <mutex>
+#include <optional>
 #include <sys/mman.h>
 #include <sys/types.h>
 #include <thread>
@@ -26,7 +28,9 @@ Result<void> NetworkManager::init( std::unique_ptr<INetworkManagerCore> core, st
     
     m_Core = std::move(core);
 
-    m_pInterface->SetGlobalCallback_SteamNetConnectionStatusChanged( sOnConnectionStatusChangedCallback );
+    if( !m_pInterface->SetGlobalCallback_SteamNetConnectionStatusChanged( sOnConnectionStatusChangedCallback )){
+        return MAKE_ERROR(HTTPErrors::eInternalError, "Callback function couldnt be set");
+    }
 
     m_running = true;
 
@@ -38,7 +42,10 @@ Result<void> NetworkManager::init( std::unique_ptr<INetworkManagerCore> core, st
 }
 
 void NetworkManager::kill(){
-    m_running = false;
+    {
+        std::lock_guard<std::mutex> _lock ( m_ManagerMutex );
+        m_running = false;
+    }
     m_callbackCV.notify_all();
 
     if( m_NetworkThread.joinable())
@@ -47,10 +54,13 @@ void NetworkManager::kill(){
     m_Core.reset(nullptr);
     m_pInterface = nullptr;
     m_initialized = false;
+    m_FunctionCalls.clear();
 }
 
-HListener NetworkManager::createListener( const char* ListenerName ) {
-    notifyFunktionCall();
+Result<HListener> NetworkManager::createListener( const char* ListenerName ) {
+
+    if( !m_initialized )
+        return MAKE_ERROR(http::HTTPErrors::eInvalidCall, "Called bevor init. Call init first");
 
     return executeFunktion([=](){
         return this->m_Core->createListener(ListenerName);
@@ -59,7 +69,8 @@ HListener NetworkManager::createListener( const char* ListenerName ) {
 
 //can return invalid listener
 Result<void> NetworkManager::DestroyListener( HListener listener ){
-    notifyFunktionCall();
+    if( !m_initialized )
+        return MAKE_ERROR(http::HTTPErrors::eInvalidCall, "Called bevor init. Call init first");
 
     return executeFunktion([=](){
         return this->m_Core->DestroyListener( listener );
@@ -69,7 +80,8 @@ Result<void> NetworkManager::DestroyListener( HListener listener ){
 //kann Socket initliazition failed returnrn
 //kann invald listener returnrn
 Result<void> NetworkManager::startListening( HListener listener, u_int16_t port ){
-    notifyFunktionCall();
+    if( !m_initialized )
+        return MAKE_ERROR(http::HTTPErrors::eInvalidCall, "Called bevor init. Call init first");
 
     return executeFunktion([=](){
         return this->m_Core->startListening( listener, port );
@@ -78,38 +90,56 @@ Result<void> NetworkManager::startListening( HListener listener, u_int16_t port 
 
 //can return invalid Listener
 Result<void> NetworkManager::stopListening( HListener listener ){
-    notifyFunktionCall();
+    if( !m_initialized )
+        return MAKE_ERROR(http::HTTPErrors::eInvalidCall, "Called bevor init. Call init first");
 
     return executeFunktion([=](){
         return this->m_Core->stopListening( listener );
     });
 }
 
-//can return invalid listener
-Result<ThreadSaveQueue<Request>*> NetworkManager::getQueue( HListener listener, QueueType queueType){
-    notifyFunktionCall();
+//can return invalid Listener
+Result<std::optional<Request>> NetworkManager::try_PoPReceivedMessageQueue( HListener listener ){
+    if( !m_initialized )
+        return MAKE_ERROR(http::HTTPErrors::eInvalidCall, "Called bevor init. Call init first");
 
     return executeFunktion([=](){
-        return this->m_Core->getQueue( listener, queueType );
+        return this->m_Core->try_PoPReceivedMessageQueue( listener );
+    });
+}
+
+//kan return invalid Listener, InvalidCall, InvalidConnection
+Result<void> NetworkManager::push_OutgoingMessageQueue( HListener listener, Request message ){
+    if( !m_initialized )
+        return MAKE_ERROR(http::HTTPErrors::eInvalidCall, "Called bevor init. Call init first");
+
+    return executeFunktion([=](){
+        return this->m_Core->push_OutgoingMessageQueue( listener, message );
+    });
+}
+
+//can return invalid listener
+Result<std::optional<Error::ErrorValue<HTTPErrors>>> NetworkManager::try_PoPErrorQueue( HListener listener ){
+    if( !m_initialized )
+        return MAKE_ERROR(http::HTTPErrors::eInvalidCall, "Called bevor init. Call init first");
+
+    return executeFunktion([=](){
+        return this->m_Core->try_PoPErrorQueue( listener );
     });
 }
 
 
-//can return invalid listener
-Result<ThreadSaveQueue<Error::ErrorValue<HTTPErrors>>*> NetworkManager::getErrorQueue( HListener listener ){
-    notifyFunktionCall();
+Result<void> NetworkManager::ConnectionServed( HSteamListenSocket socket, HSteamNetConnection connection ){
+    if( !m_initialized )
+        return MAKE_ERROR(http::HTTPErrors::eInvalidCall, "Called bevor init. Call init first");
 
-    return executeFunktion([=](){
-        return this->m_Core->getErrorQueue( listener );
-    });
-}
-
-void NetworkManager::ConnectionServed( HSteamListenSocket socket, HSteamNetConnection connection ){
     notifyFunktionCall();
 
     m_FunctionCalls.push([=](){
         this->m_Core->ConnectionServed( socket, connection );
     });
+
+    return {};
 }
 
 void NetworkManager::run(){
@@ -125,7 +155,7 @@ void NetworkManager::run(){
 
         lock.unlock();
 
-        while( m_Busy ){
+        while( m_Busy || m_running ){
             tick();
 
             if( m_Core->isSocketClientsMapEmpty() && m_FunctionCalls.empty() )

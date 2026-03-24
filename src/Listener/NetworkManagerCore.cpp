@@ -1,13 +1,16 @@
 #include "Datastrucutres/ThreadSaveQueue.h"
+#include "Error/Error.h"
 #include "Error/Errorcodes.h"
 #include "Logger/Logger.h"
 #include "http/HTTPinitialization.h"
 #include "http/NetworkManager.h"
+#include "http/Request.h"
 #include "steam/isteamnetworkingsockets.h"
 #include "steam/steamnetworkingtypes.h"
 #include <algorithm>
 #include <cassert>
 #include <memory>
+#include <optional>
 #include <sys/types.h>
 #include <utility>
 
@@ -66,7 +69,7 @@ Result<void> NetworkManagerCore::startListening( HListener listener, u_int16_t p
     
     ListenerInfo& info = m_Listeners.at(listener);
 
-    if( info.m_Socket != k_HSteamListenSocket_Invalid || info.m_Socket != k_HSteamNetPollGroup_Invalid )
+    if( info.m_Socket != k_HSteamListenSocket_Invalid )
         return MAKE_ERROR(HTTPErrors::eInvalidCall, "Already Listening on this Scoket -> Socket/Pollgroup Valid" );
 
     auto result = info.m_Listener->initSocket( port );
@@ -79,7 +82,10 @@ Result<void> NetworkManagerCore::startListening( HListener listener, u_int16_t p
 
     m_SocketClientsMap.emplace(info.m_Socket, SocketInfo(SocketHandlers.m_PollGroup) );
 
-    info.m_Listener->startListening(); 
+    auto listenerRes = info.m_Listener->startListening(); 
+
+    if( listenerRes.isErr() )
+        return MAKE_ERROR(listenerRes.error().ErrorCode, listenerRes.error().Message);
     
     LOG_VINFO("Started Listening on Port", port);
 
@@ -119,29 +125,51 @@ Result<void> NetworkManagerCore::stopListening( HListener listener ){
     return {};
 }
 
-Result<ThreadSaveQueue<Request>*> NetworkManagerCore::getQueue( HListener listener, QueueType queueType ){
+Result<std::optional<Request>> NetworkManagerCore::try_PoPReceivedMessageQueue( HListener listener ){
+    if(auto err = isValidListenerHandler(listener); err.isErr())
+        return MAKE_ERROR(err.error().ErrorCode, err.error().Message);
+    
+    auto* queue = m_Listeners.at(listener).m_Listener->getReceivedQueue();
+
+    return queue->try_pop();
+}
+
+Result<void> NetworkManagerCore::push_OutgoingMessageQueue( HListener listener, Request message ){
     if(auto err = isValidListenerHandler(listener); err.isErr())
         return MAKE_ERROR(err.error().ErrorCode, err.error().Message);
 
-    auto& pListener = m_Listeners.at(listener); 
-    switch ( queueType ) 
-    {
-        case RECEIVED:
-            return pListener.m_Listener->getReceivedQueue();
-        case OUTGOING:
-            return pListener.m_Listener->getOutgoingQueue();
-    }
+    ListenerInfo& info = m_Listeners.at(listener);
+    HSteamNetConnection connection = message.m_Connection;
+
+    if( info.m_Socket == k_HSteamListenSocket_Invalid )
+        return MAKE_ERROR(http::eInvalidCall, "Tryed pushing Outgoing message without listening");
+
+    assert(m_SocketClientsMap.find(info.m_Socket) != m_SocketClientsMap.end());
+
+    auto& allClients = m_SocketClientsMap.at(info.m_Socket).m_AllConnections;
+
+    auto it = std::find_if(allClients.begin(), allClients.end(), [&connection](const Connections& con){
+        return con.m_connection == connection;
+    }); 
+    
+    if( it == allClients.end() )
+        return MAKE_ERROR(HTTPErrors::eInvalidConnection, "No connection on this listener with te gicen connection");
+
+    info.m_Listener->getOutgoingQueue()->push(std::move(message));
+
+    return {};
 }
 
-Result<ThreadSaveQueue<Error::ErrorValue<HTTPErrors>>*> NetworkManagerCore::getErrorQueue( HListener listener )
-{
+Result<std::optional<Error::ErrorValue<HTTPErrors>>> NetworkManagerCore::try_PoPErrorQueue( HListener listener ){
+
     if(auto err = isValidListenerHandler(listener); err.isErr())
         return MAKE_ERROR(err.error().ErrorCode, err.error().Message);
+    
+    auto* queue = m_Listeners.at(listener).m_Listener->getErrorQueue();
 
-    auto& pListener = m_Listeners.at(listener); 
-
-    return pListener.m_Listener->getErrorQueue();
+    return queue->try_pop();
 }
+
 
 void NetworkManagerCore::ConnectionServed( HSteamListenSocket socket, HSteamNetConnection connection ){
     assert(m_SocketClientsMap.find(socket) != m_SocketClientsMap.end());
@@ -253,6 +281,8 @@ void NetworkManagerCore::pollConnectionChanges(){
 
 #define MAX_FUNCTIONS_PER_SESSION 20 
 void NetworkManagerCore::pollFunctionCalls( ThreadSaveQueue<std::function<void()>>* functionQueue ){
+    assert(functionQueue != nullptr);
+
     u_int16_t counter = 0;
     while( !functionQueue->empty() && counter < MAX_FUNCTIONS_PER_SESSION ) {
         auto funk_opt = functionQueue->try_pop();
