@@ -133,6 +133,8 @@ Result<void> NetworkManager::ConnectionServed( HSteamListenSocket socket, HSteam
     if( !m_initialized )
         return MAKE_ERROR(http::HTTPErrors::eInvalidCall, "Called bevor init. Call init first");
 
+    notifyFunktionCall();
+
     m_FunctionCalls.push([=](){
         this->m_Core->ConnectionServed( socket, connection );
     });

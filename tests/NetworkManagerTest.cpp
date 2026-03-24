@@ -280,13 +280,17 @@ TEST_F(NetworkManagerTest, stopListening_CalledWithoutInit_ReturnsError){
 TEST_F(NetworkManagerTest, ConnectionServed_Succes){
     initManager();
 
-    EXPECT_CALL(*pCore, ConnectionServed(TEST_PORT, TEST_HCONNECTION)).Times(1);
+    std::promise<void> prms;
+
+    EXPECT_CALL(*pCore, ConnectionServed(TEST_PORT, TEST_HCONNECTION)).WillOnce([&](){
+        prms.set_value();
+    });
 
     auto res = manager->ConnectionServed(TEST_PORT, TEST_HCONNECTION);
 
-    std::this_thread::sleep_for(std::chrono::milliseconds(20));
+    ASSERT_EQ(prms.get_future().wait_for(std::chrono::milliseconds(100)), std::future_status::ready);
+
     ASSERT_TRUE(res.isOK());
-    //race condition?
 }
 
 TEST_F(NetworkManagerTest, ConnectionServed_CalledWithNoInit_ReturnsError){
@@ -316,11 +320,15 @@ TEST_F(NetworkManagerTest, staticRunCallbacks){
 
 TEST_F(NetworkManagerTest, staticConnectionServed){
     initManager();
+    std::promise<void> prms;
 
-    EXPECT_CALL(*pCore, ConnectionServed(TEST_PORT, TEST_HCONNECTION)).Times(1);
+    EXPECT_CALL(*pCore, ConnectionServed(TEST_PORT, TEST_HCONNECTION)).WillOnce([&](){
+        prms.set_value();
+    });
+
     http::NetworkManager::sConnectionServedCallback(TEST_PORT, TEST_HCONNECTION);
 
-    std::this_thread::sleep_for(std::chrono::milliseconds(20));
+    ASSERT_EQ(prms.get_future().wait_for(std::chrono::milliseconds(100)), std::future_status::ready);
 }
 
 TEST_F(NetworkManagerTest, popReceivedQueue_sccess){
