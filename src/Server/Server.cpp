@@ -12,7 +12,9 @@ namespace http{
             : m_bQuit(false), m_CPUWorkers(std::make_unique<ThreadPool>(CPU_CORES)),
                 m_APIWorkers(std::make_unique<ThreadPool> (4*CPU_CORES)), m_rNetworkManager(NetworkManager::Get())
     {
-        m_Listener = m_rNetworkManager.createListener(nullptr)  ;
+
+        auto res = m_rNetworkManager.createListener(nullptr);
+        m_Listener = res.value();
         
         m_ServerThread = std::thread([this](){ this->run(); });
     }

@@ -28,7 +28,9 @@ Result<void> NetworkManager::init( std::unique_ptr<INetworkManagerCore> core, st
     
     m_Core = std::move(core);
 
-    m_pInterface->SetGlobalCallback_SteamNetConnectionStatusChanged( sOnConnectionStatusChangedCallback );
+    if( !m_pInterface->SetGlobalCallback_SteamNetConnectionStatusChanged( sOnConnectionStatusChangedCallback )){
+        return MAKE_ERROR(HTTPErrors::eInternalError, "Callback function couldnt be set");
+    }
 
     m_running = true;
 
@@ -55,7 +57,11 @@ void NetworkManager::kill(){
     m_FunctionCalls.clear();
 }
 
-HListener NetworkManager::createListener( const char* ListenerName ) {
+Result<HListener> NetworkManager::createListener( const char* ListenerName ) {
+
+    if( !m_initialized )
+        return MAKE_ERROR(http::HTTPErrors::eInvalidCall, "Called bevor init. Call init first");
+
     return executeFunktion([=](){
         return this->m_Core->createListener(ListenerName);
     });
@@ -63,6 +69,9 @@ HListener NetworkManager::createListener( const char* ListenerName ) {
 
 //can return invalid listener
 Result<void> NetworkManager::DestroyListener( HListener listener ){
+    if( !m_initialized )
+        return MAKE_ERROR(http::HTTPErrors::eInvalidCall, "Called bevor init. Call init first");
+
     return executeFunktion([=](){
         return this->m_Core->DestroyListener( listener );
     });
@@ -71,6 +80,9 @@ Result<void> NetworkManager::DestroyListener( HListener listener ){
 //kann Socket initliazition failed returnrn
 //kann invald listener returnrn
 Result<void> NetworkManager::startListening( HListener listener, u_int16_t port ){
+    if( !m_initialized )
+        return MAKE_ERROR(http::HTTPErrors::eInvalidCall, "Called bevor init. Call init first");
+
     return executeFunktion([=](){
         return this->m_Core->startListening( listener, port );
     });
@@ -78,6 +90,9 @@ Result<void> NetworkManager::startListening( HListener listener, u_int16_t port 
 
 //can return invalid Listener
 Result<void> NetworkManager::stopListening( HListener listener ){
+    if( !m_initialized )
+        return MAKE_ERROR(http::HTTPErrors::eInvalidCall, "Called bevor init. Call init first");
+
     return executeFunktion([=](){
         return this->m_Core->stopListening( listener );
     });
@@ -85,6 +100,9 @@ Result<void> NetworkManager::stopListening( HListener listener ){
 
 //can return invalid Listener
 Result<std::optional<Request>> NetworkManager::try_PoPReceivedMessageQueue( HListener listener ){
+    if( !m_initialized )
+        return MAKE_ERROR(http::HTTPErrors::eInvalidCall, "Called bevor init. Call init first");
+
     return executeFunktion([=](){
         return this->m_Core->try_PoPReceivedMessageQueue( listener );
     });
@@ -92,6 +110,9 @@ Result<std::optional<Request>> NetworkManager::try_PoPReceivedMessageQueue( HLis
 
 //kan return invalid Listener, InvalidCall, InvalidConnection
 Result<void> NetworkManager::push_OutgoingMessageQueue( HListener listener, Request message ){
+    if( !m_initialized )
+        return MAKE_ERROR(http::HTTPErrors::eInvalidCall, "Called bevor init. Call init first");
+
     return executeFunktion([=](){
         return this->m_Core->push_OutgoingMessageQueue( listener, message );
     });
@@ -99,16 +120,24 @@ Result<void> NetworkManager::push_OutgoingMessageQueue( HListener listener, Requ
 
 //can return invalid listener
 Result<std::optional<Error::ErrorValue<HTTPErrors>>> NetworkManager::try_PoPErrorQueue( HListener listener ){
+    if( !m_initialized )
+        return MAKE_ERROR(http::HTTPErrors::eInvalidCall, "Called bevor init. Call init first");
+
     return executeFunktion([=](){
         return this->m_Core->try_PoPErrorQueue( listener );
     });
 }
 
 
-void NetworkManager::ConnectionServed( HSteamListenSocket socket, HSteamNetConnection connection ){
+Result<void> NetworkManager::ConnectionServed( HSteamListenSocket socket, HSteamNetConnection connection ){
+    if( !m_initialized )
+        return MAKE_ERROR(http::HTTPErrors::eInvalidCall, "Called bevor init. Call init first");
+
     m_FunctionCalls.push([=](){
         this->m_Core->ConnectionServed( socket, connection );
     });
+
+    return {};
 }
 
 void NetworkManager::run(){
@@ -124,7 +153,7 @@ void NetworkManager::run(){
 
         lock.unlock();
 
-        while( m_Busy ){
+        while( m_Busy || m_running ){
             tick();
 
             if( m_Core->isSocketClientsMapEmpty() && m_FunctionCalls.empty() )

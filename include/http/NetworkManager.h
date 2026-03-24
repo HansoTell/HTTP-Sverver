@@ -122,14 +122,14 @@ public:
     Result<void> init( std::unique_ptr<INetworkManagerCore> core, std::shared_ptr<ISteamNetworkinSocketsAdapter> pInterface );
     void kill();
     
-    HListener createListener( const char* ListenerName );
+    Result<HListener> createListener( const char* ListenerName );
     Result<void> DestroyListener( HListener listener );
     Result<void> startListening( HListener listener, u_int16_t port);
     Result<void> stopListening( HListener listener );
     Result<std::optional<Request>> try_PoPReceivedMessageQueue( HListener listener );
     Result<void> push_OutgoingMessageQueue( HListener listener, Request message );
     Result<std::optional<Error::ErrorValue<HTTPErrors>>> try_PoPErrorQueue( HListener listener );
-    void ConnectionServed( HSteamListenSocket socket, HSteamNetConnection connection );
+    Result<void> ConnectionServed( HSteamListenSocket socket, HSteamNetConnection connection );
     void runCallbacks( SteamNetConnectionStatusChangedCallback_t* pInfo ) { m_Core->callbackManager( pInfo ); }
 public:
     static void sOnConnectionStatusChangedCallback( SteamNetConnectionStatusChangedCallback_t* pInfo ) { NetworkManager::Get().runCallbacks( pInfo ); } 
@@ -147,6 +147,9 @@ private:
     auto executeFunktion(Funktion&& func) ->std::invoke_result_t<Funktion>{
 
         using returnVal = std::invoke_result_t<Funktion>;
+
+        if( std::this_thread::get_id() == m_NetworkThread.get_id() )
+            return func();
 
         auto prommisedVal = std::make_shared<std::promise<returnVal>>();
 

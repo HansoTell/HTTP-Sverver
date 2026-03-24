@@ -10,6 +10,7 @@ namespace http {
         eInvalidSocket,
         eInvalidListener,
         eInvalidCall,
-        eInvalidConnection
+        eInvalidConnection,
+        eInternalError
     };
 }
