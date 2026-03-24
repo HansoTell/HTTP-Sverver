@@ -321,3 +321,4 @@ TEST_F(NetworkManagerTest, popErrorQ_invalidListener){
 
 
 //fehlet mhrfache belastung und vielleicht reihenfolge oder so
+//socket clients map nicht lerr beendet sich dannd er thread ode müssen wir ein running adden

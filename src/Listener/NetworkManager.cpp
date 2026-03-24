@@ -40,7 +40,10 @@ Result<void> NetworkManager::init( std::unique_ptr<INetworkManagerCore> core, st
 }
 
 void NetworkManager::kill(){
-    m_running = false;
+    {
+        std::lock_guard<std::mutex> _lock ( m_ManagerMutex );
+        m_running = false;
+    }
     m_callbackCV.notify_all();
 
     if( m_NetworkThread.joinable())
@@ -49,11 +52,10 @@ void NetworkManager::kill(){
     m_Core.reset(nullptr);
     m_pInterface = nullptr;
     m_initialized = false;
+    m_FunctionCalls.clear();
 }
 
 HListener NetworkManager::createListener( const char* ListenerName ) {
-    notifyFunktionCall();
-
     return executeFunktion([=](){
         return this->m_Core->createListener(ListenerName);
     });
@@ -61,8 +63,6 @@ HListener NetworkManager::createListener( const char* ListenerName ) {
 
 //can return invalid listener
 Result<void> NetworkManager::DestroyListener( HListener listener ){
-    notifyFunktionCall();
-
     return executeFunktion([=](){
         return this->m_Core->DestroyListener( listener );
     });
@@ -71,8 +71,6 @@ Result<void> NetworkManager::DestroyListener( HListener listener ){
 //kann Socket initliazition failed returnrn
 //kann invald listener returnrn
 Result<void> NetworkManager::startListening( HListener listener, u_int16_t port ){
-    notifyFunktionCall();
-
     return executeFunktion([=](){
         return this->m_Core->startListening( listener, port );
     });
@@ -80,8 +78,6 @@ Result<void> NetworkManager::startListening( HListener listener, u_int16_t port 
 
 //can return invalid Listener
 Result<void> NetworkManager::stopListening( HListener listener ){
-    notifyFunktionCall();
-
     return executeFunktion([=](){
         return this->m_Core->stopListening( listener );
     });
@@ -89,8 +85,6 @@ Result<void> NetworkManager::stopListening( HListener listener ){
 
 //can return invalid Listener
 Result<std::optional<Request>> NetworkManager::try_PoPReceivedMessageQueue( HListener listener ){
-    notifyFunktionCall();
-
     return executeFunktion([=](){
         return this->m_Core->try_PoPReceivedMessageQueue( listener );
     });
@@ -98,8 +92,6 @@ Result<std::optional<Request>> NetworkManager::try_PoPReceivedMessageQueue( HLis
 
 //kan return invalid Listener, InvalidCall, InvalidConnection
 Result<void> NetworkManager::push_OutgoingMessageQueue( HListener listener, Request message ){
-    notifyFunktionCall();
-
     return executeFunktion([=](){
         return this->m_Core->push_OutgoingMessageQueue( listener, message );
     });
@@ -107,8 +99,6 @@ Result<void> NetworkManager::push_OutgoingMessageQueue( HListener listener, Requ
 
 //can return invalid listener
 Result<std::optional<Error::ErrorValue<HTTPErrors>>> NetworkManager::try_PoPErrorQueue( HListener listener ){
-    notifyFunktionCall();
-
     return executeFunktion([=](){
         return this->m_Core->try_PoPErrorQueue( listener );
     });
@@ -116,8 +106,6 @@ Result<std::optional<Error::ErrorValue<HTTPErrors>>> NetworkManager::try_PoPErro
 
 
 void NetworkManager::ConnectionServed( HSteamListenSocket socket, HSteamNetConnection connection ){
-    notifyFunktionCall();
-
     m_FunctionCalls.push([=](){
         this->m_Core->ConnectionServed( socket, connection );
     });

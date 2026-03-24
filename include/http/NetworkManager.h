@@ -143,7 +143,6 @@ private:
     void tick();
     void run();
 
-    //refactore ohne shared pointer pls...
     template<typename Funktion>
     auto executeFunktion(Funktion&& func) ->std::invoke_result_t<Funktion>{
 
@@ -156,6 +155,7 @@ private:
         m_FunctionCalls.push([func = std::forward<Funktion>(func), prommisedVal]() mutable {
             prommisedVal->set_value(func());
         });
+        notifyFunktionCall();
         
         return future.get();
     }
