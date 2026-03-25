@@ -1,5 +1,6 @@
 #include "Error/Errorcodes.h"
 #include "http/NetworkManager.h"
+#include "http/Parser.h"
 #include <http/Server.h>
 #include <optional>
 #include <sys/types.h>
@@ -14,6 +15,7 @@ namespace http{
     {
 
         auto res = m_rNetworkManager.createListener(nullptr);
+    
         m_Listener = res.value();
         
         m_ServerThread = std::thread([this](){ this->run(); });
@@ -59,6 +61,7 @@ namespace http{
     }
 
     void Server::stopListening(){
+        auto erg = m_rNetworkManager.stopListening(m_Listener);
         
     }
 
@@ -66,22 +69,20 @@ namespace http{
         #define REQUEST_LIMIT_PER_SESSION 100
         u_int16_t limitCounter = 0; 
 
-        auto Messages_or = NetworkManager::Get().try_PoPReceivedMessageQueue( m_Listener );
-
-        //ig das wird mal error handeling
-        if( Messages_or.isErr() ){
-                
-        }
-
-
         while( limitCounter < REQUEST_LIMIT_PER_SESSION )
         {
+            auto Messages_or = m_rNetworkManager.try_PoPReceivedMessageQueue( m_Listener )  ;
+            //ig das wird mal error handeling
+            if( Messages_or.isErr() ){
+                    
+            }
             auto Messages = Messages_or.value();
             if( !Messages.has_value() )
                 break;
 
             m_CPUWorkers->assignTask([this, &Messages]()  {
-                this->parseRequest(std::move( Messages.value() ));
+                RequestInfo info = this->m_pParser->parse(Messages.value().m_Message);
+                //weitere arbeiten
             });
             limitCounter++;
         }
@@ -95,10 +96,4 @@ namespace http{
     //api calls? / static gets -> Router
     //antwort formulieren
     //senden
-
-    //mit move arbeiten wollen das ja nicht kopieren aber soweit ich weiß funktioniert das so mit moven gut
-    //muss eh in ein anderes modul da kann man sich dann gedaniken machen
-    void Server::parseRequest( Request httpRequest ){
-
-    }
 }

@@ -1,15 +1,15 @@
 #pragma once
 
+#include <memory>
 #include <steam/steamnetworkingsockets.h>
 
-#include "Request.h"
 #include "Datastrucutres/ThreadPool.h"
 #include "NetworkManager.h"
+#include "Parser.h"
 
 
+//braucht möglichkeit einzustellen welche methoden man anbietet und welche nicht, z.B delet oder put dürfen manchmal ja einfach nith erlaubt sein
 namespace http{
-
-
     class Server {
     public:
         void setFileRoot();
@@ -24,11 +24,9 @@ namespace http{
         void run();
         void pollIncMessages();
         void pollErrorMessages();
-
-        void parseRequest( Request httpRequest );
-
     private:
         NetworkManager& m_rNetworkManager;
+        std::unique_ptr<IParser> m_pParser;
         
         std::thread m_ServerThread;
         std::atomic<bool> m_bQuit = false;
@@ -40,5 +38,4 @@ namespace http{
         std::unique_ptr<ThreadPool> m_CPUWorkers;
         std::unique_ptr<ThreadPool> m_APIWorkers;
     };
-
 }
