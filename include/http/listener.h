@@ -21,6 +21,7 @@ struct SocketHandlers {
     HSteamNetPollGroup m_PollGroup;
 };
 
+
 class IListenerCore {
 public:
     virtual ~IListenerCore() = default;

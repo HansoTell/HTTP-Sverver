@@ -1,5 +1,6 @@
 #pragma once
 
+#include "HTTPinitialization.h"
 #include <string>
 #include <sys/types.h>
 
@@ -13,6 +14,12 @@ enum RequestType {
 struct RequestInfo {
     RequestType reqType;
     u_int16_t statusCode; //ig
+};
+
+struct RequestParts {
+    std::string StartLine;
+    std::string Header;
+    std::string Body;
 };
 
 class IParser {
@@ -30,6 +37,8 @@ public:
     Parser(Parser&& other) = delete;
     ~Parser() = default;
 private:
+    Result<RequestParts> splitRequest( const std::string& request );
 
+private:
 };
 }
