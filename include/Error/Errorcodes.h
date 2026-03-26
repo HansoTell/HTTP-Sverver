@@ -11,6 +11,7 @@ namespace http {
         eInvalidListener,
         eInvalidCall,
         eInvalidConnection,
-        eInternalError
+        eInternalError,
+        eParseError
     };
 }
