@@ -6,7 +6,6 @@
 #include <string>
 #include <sys/types.h>
 
-//makro das einen splitter liefert
 #define DEAFULT_SPLITTER std::make_unique<Splitter>()
 
 namespace http {
@@ -21,7 +20,8 @@ struct RequestInfo {
     u_int16_t statusCode; //ig
 };
 
-struct RequestParts {
+struct RequestParts 
+{
     std::string StartLine;
     std::string Header;
     std::string Body;
@@ -68,6 +68,10 @@ public:
     Parser(const Parser& other) = delete;
     Parser(Parser&& other) = delete;
     ~Parser() = default;
+private:
+    Result<void> parseStartLine( const std::string& startLine );
+    Result<void> parseHeader( const std::string& Header );
+    Result<void> parseBoady( const std::string& Boady );
 private:
     std::unique_ptr<IRequestSplitter> m_Splitter;
 };
