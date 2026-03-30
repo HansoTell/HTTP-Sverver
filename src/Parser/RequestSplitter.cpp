@@ -11,44 +11,39 @@ namespace http {
 
 Result<RequestParts> Splitter::splitRequest( const std::string& request )
 {
-    RequestParts parts {};
+    PartsSeperator seperationPoints = defineSeperations( request );
 
-    size_t posEndStartLine = request.find(CRLF);
-    size_t posEndHeader = request.find(HEADER_END);
-    size_t posStartHeader = posEndStartLine + CRLF_LENGTH;
-    size_t posStartBody = posEndHeader + HEADER_END_LENGTH;
-
-    if(posEndStartLine == std::string::npos || posEndHeader == std::string::npos )
+    if(seperationPoints.posEndStartLine == std::string::npos || seperationPoints.posEndHeader == std::string::npos )
         return MAKE_ERROR(HTTPErrors::eParseError, "Failed to identify HTTP parts");
 
-    //quatsch natürlich momentan nh also da ist ja noch gar nihts gesetzte
-    if( posEndStartLine == posEndHeader ){
-        parts.Header = "";
-        parts.Body = "";
-        return parts;
-    }
-
-    if( posStartBody >= request.size() ){
-        parts.Body = "";
-        return parts;
-    }
-
-    parts.StartLine = request.substr(0, posEndStartLine);
-    parts.Header = request.substr(posStartHeader, posEndHeader - posStartHeader);
-    parts.Body = request.substr(posStartBody);
-
-    return parts;
+    return splitAllParts(request, seperationPoints);
 }
 
-RequestParts splitIntoParts( const std::string& request, size_t EndStartLine, size_t StartHeader, size_t EndHeader, size_t StartBody )
+PartsSeperator Splitter::defineSeperations( const std::string& request )
+{
+    PartsSeperator seperator {};
+
+    seperator.posEndStartLine = request.find(CRLF);
+    seperator.posEndHeader = request.find(HEADER_END);
+
+    size_t StartBody = seperator.posEndHeader + HEADER_END_LENGTH;
+
+    seperator.posStartHeader = (seperator.posEndStartLine == seperator.posEndHeader) ? seperator.posEndStartLine + CRLF_LENGTH : -1;
+    seperator.posStartBody = (StartBody < request.size()) ? StartBody : -1;
+
+    return seperator;
+}
+
+RequestParts splitAllParts( const std::string& request, const PartsSeperator& seperationPoints )
 {
     RequestParts parts {};
 
-    parts.StartLine = request.substr(0, EndStartLine);
-    parts.Header = request.substr(StartHeader, EndHeader - StartHeader);
-    parts.Body = request.substr(StartBody);
+    parts.StartLine = request.substr(0, seperationPoints.posEndStartLine);
+    parts.Header = (seperationPoints.posStartHeader != -1) 
+        ? request.substr(seperationPoints.posStartHeader, seperationPoints.posEndHeader - seperationPoints.posStartHeader) : "";
+    parts.Body = (seperationPoints.posStartBody != -1) 
+        ? request.substr(seperationPoints.posStartBody) : "";
 
     return parts;
 }
-
 }

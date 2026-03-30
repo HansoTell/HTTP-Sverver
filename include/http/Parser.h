@@ -27,6 +27,14 @@ struct RequestParts {
     std::string Body;
 };
 
+struct PartsSeperator 
+{
+    size_t posEndStartLine;
+    size_t posEndHeader; 
+    size_t posStartHeader; 
+    size_t posStartBody;      
+};
+
 class IRequestSplitter {
 public:
     virtual ~IRequestSplitter() = default;
@@ -48,7 +56,8 @@ public:
     Splitter(Splitter&& other) = delete;
     ~Splitter() = default;
 private:
-    RequestParts splitIntoParts( const std::string& request, size_t EndStartLine, size_t StartHeader, size_t EndHeader, size_t StartBody );
+    PartsSeperator defineSeperations( const std::string& request );
+    RequestParts splitAllParts( const std::string& request, const PartsSeperator& seperationPoints );
 };
 
 class Parser : public IParser {
