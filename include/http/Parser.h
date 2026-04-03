@@ -10,14 +10,13 @@
 
 namespace http {
 
-//addedn wir error type?? -> oder geben wir ein error value definition rein oder so, dass wir das oder einen http error value returnen oder variant oder so
 enum RequestType {
     GET = 0, POST, HEAD, PUT, PATCH, DELETE, TRACE, OPTIONS, CONNECT
 };
 
 struct RequestInfo {
     RequestType reqType;
-    u_int16_t statusCode; //ig
+    u_int16_t statusCode; 
 };
 
 struct RequestParts 
@@ -35,10 +34,13 @@ struct PartsSeperator
     size_t posStartBody;      
 };
 
-class IRequestSplitter {
+class IParserHelper {
 public:
-    virtual ~IRequestSplitter() = default;
+    virtual ~IParserHelper() = default;
     virtual Result<RequestParts> splitRequest( const std::string& request ) = 0;
+    virtual Result<void> parseStartLine( const std::string& startLine ) = 0;
+    virtual Result<void> parseHeader( const std::string& Header ) = 0;
+    virtual Result<void> parseBoady( const std::string& Boady ) = 0;
 };
 
 class IParser {
@@ -47,32 +49,33 @@ public:
     virtual RequestInfo parse(const std::string& message) = 0;
 };
 
-class Splitter : public IRequestSplitter {
+class ParserHelper : public IParserHelper {
 public:
     Result<RequestParts> splitRequest( const std::string& request ) override;
+    Result<void> parseStartLine( const std::string& startLine ) override;
+    Result<void> parseHeader( const std::string& Header ) override;
+    Result<void> parseBoady( const std::string& Boady ) override;
 public:
-    Splitter() = default;
-    Splitter(const Splitter& other) = delete;
-    Splitter(Splitter&& other) = delete;
-    ~Splitter() = default;
+    ParserHelper() = default;
+    ParserHelper(const ParserHelper& other) = delete;
+    ParserHelper(ParserHelper&& other) = delete;
+    ~ParserHelper() = default;
 private:
     PartsSeperator defineSeperations( const std::string& request );
     RequestParts splitAllParts( const std::string& request, const PartsSeperator& seperationPoints );
+    Result<RequestType> findType(const char* strType);
 };
 
 class Parser : public IParser {
 public:
     RequestInfo parse(const std::string& message) override;
 public:
-    Parser(std::unique_ptr<IRequestSplitter> splitter);
+    Parser(std::unique_ptr<IParserHelper> splitter);
     Parser(const Parser& other) = delete;
     Parser(Parser&& other) = delete;
     ~Parser() = default;
 private:
-    Result<void> parseStartLine( const std::string& startLine );
-    Result<void> parseHeader( const std::string& Header );
-    Result<void> parseBoady( const std::string& Boady );
 private:
-    std::unique_ptr<IRequestSplitter> m_Splitter;
+    std::unique_ptr<IParserHelper> m_Helper;
 };
 }

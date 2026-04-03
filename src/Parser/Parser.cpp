@@ -1,28 +1,23 @@
 #include "http/Parser.h"
-#include "http/HTTPinitialization.h"
+#include <cstring>
 #include <string>
 
 namespace http{
 
-Parser::Parser(std::unique_ptr<IRequestSplitter> splitter) : m_Splitter(std::move(splitter)) {}
+Parser::Parser(std::unique_ptr<IParserHelper> splitter) : m_Helper(std::move(splitter)) {}
 
+//die frage ist halt wie mache ioch error, also 
 RequestInfo Parser::parse( const std::string& message ){
-    auto parts_or = m_Splitter->splitRequest( message ); 
+    auto parts_or = m_Helper->splitRequest( message ); 
 
     if( parts_or.isErr() ) {
+        //status code setzetn und so
 
     }
     
     const RequestParts& parts = parts_or.value();
 
-    auto res = parseStartLine( parts.StartLine );
-
-
-    return {};
-}
-
-Result<void> parseStartLine( const std::string& StartLine ) 
-{
+    auto res = m_Helper->parseStartLine( parts.StartLine );
 
 
 

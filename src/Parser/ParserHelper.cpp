@@ -8,8 +8,28 @@ namespace http {
 #define HEADER_END "\r\n\r\n"
 #define HEADER_END_LENGTH 4
 
+    namespace cStrHelper {
+    //finds first Occurence of either opf the given characters
+    //only for nullterminated c strings. 
+    const char* findFirstOccOf( const char* str, char c1, char c2 ) 
+    {
+        if( str == NULL )
+            return NULL;
 
-Result<RequestParts> Splitter::splitRequest( const std::string& request )
+        while( (*str) != '\0' )
+        {
+            if( (*str) == c1 || (*str) == c2 )
+                return str;
+
+            str++;
+        }
+
+        return NULL;
+    }
+
+    }
+
+Result<RequestParts> ParserHelper::splitRequest( const std::string& request )
 {
     PartsSeperator seperationPoints = defineSeperations( request );
 
@@ -19,7 +39,7 @@ Result<RequestParts> Splitter::splitRequest( const std::string& request )
     return splitAllParts(request, seperationPoints);
 }
 
-PartsSeperator Splitter::defineSeperations( const std::string& request )
+PartsSeperator ParserHelper::defineSeperations( const std::string& request )
 {
     PartsSeperator seperator {};
 
@@ -34,7 +54,7 @@ PartsSeperator Splitter::defineSeperations( const std::string& request )
     return seperator;
 }
 
-RequestParts splitAllParts( const std::string& request, const PartsSeperator& seperationPoints )
+RequestParts ParserHelper::splitAllParts( const std::string& request, const PartsSeperator& seperationPoints )
 {
     RequestParts parts {};
 
@@ -45,5 +65,20 @@ RequestParts splitAllParts( const std::string& request, const PartsSeperator& se
         ? request.substr(seperationPoints.posStartBody) : "";
 
     return parts;
+}
+
+Result<void> ParserHelper::parseStartLine( const std::string& StartLine ) 
+{
+    const char* cStrStartLine = StartLine.c_str();
+
+    const char* endType = cStrHelper::findFirstOccOf(cStrStartLine, ' ', '\t');
+    
+
+    auto res = findType(nullptr);
+
+
+
+
+    return {};
 }
 }
