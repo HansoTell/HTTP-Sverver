@@ -1,4 +1,12 @@
+#include "Error/Error.h"
+#include "Error/Errorcodes.h"
+#include "http/HTTPinitialization.h"
 #include "http/Parser.h"
+#include <cassert>
+#include <cstddef>
+#include <cstring>
+#include <string_view>
+#include <unordered_map>
 
 
 namespace http {
@@ -8,7 +16,38 @@ namespace http {
 #define HEADER_END "\r\n\r\n"
 #define HEADER_END_LENGTH 4
 
+static const std::unordered_map<std::string_view, RequestType> RequestTypeMap {
+    { "GET", RequestType::GET },
+    { "POST", RequestType::POST },
+    { "HEAD", RequestType::HEAD },
+    { "PUT", RequestType::PUT },
+    { "PATCH", RequestType::PATCH },
+    { "DELETE", RequestType::DELETE },
+    { "TRACE", RequestType::TRACE },
+    { "OPTIONS", RequestType::OPTIONS },
+    { "CONNECT", RequestType::CONNECT }
+};
+
     namespace cStrHelper {
+    //finds the index of a char based on the pointer. -1 if pos not in str
+    size_t getIndex( const char* str, const char* pos )
+    {
+        if( str == NULL || pos == NULL )
+            return -1;
+
+        size_t idx = 0;
+        
+        while( str != pos )
+        {
+            if( (*str) == '\0' )
+                return -1;
+            idx++;
+            str++;
+        }
+
+        return idx;
+    }
+
     //finds first Occurence of either opf the given characters
     //only for nullterminated c strings. 
     const char* findFirstOccOf( const char* str, char c1, char c2 ) 
@@ -16,15 +55,22 @@ namespace http {
         if( str == NULL )
             return NULL;
 
-        while( (*str) != '\0' )
+        const char* it = str;
+        while( (*it) != '\0' )
         {
-            if( (*str) == c1 || (*str) == c2 )
-                return str;
+            if( (*it) == c1 || (*it) == c2 )
+                return it;
 
             str++;
         }
 
         return NULL;
+    }
+
+    size_t getIndexOfFirstOccOf( const char* str, char c1, char c2 )
+    {
+        const char* pos = findFirstOccOf(str, c1, c2);
+        return getIndex(str, pos);
     }
 
     }
@@ -67,18 +113,41 @@ RequestParts ParserHelper::splitAllParts( const std::string& request, const Part
     return parts;
 }
 
+//brauch dieses ergebnis als out Parameter
+//und alles richtigh bei errorn setzten
 Result<void> ParserHelper::parseStartLine( const std::string& StartLine ) 
 {
     const char* cStrStartLine = StartLine.c_str();
 
-    const char* endType = cStrHelper::findFirstOccOf(cStrStartLine, ' ', '\t');
+    size_t EndPos = cStrHelper::getIndexOfFirstOccOf(cStrStartLine, ' ', '\t');
     
+    if( EndPos == -1 )
+        return MAKE_ERROR(HTTPErrors::eParseError, "Cant find seperation");
+    
+    char buff[EndPos+1];
+    strncpy(buff, cStrStartLine, EndPos);
+    buff[EndPos] = '\0';
 
-    auto res = findType(nullptr);
+    auto type_or = StrToType(buff);
 
+    if( type_or.isErr() )
+        return COPY_ERROR(type_or.error());
 
 
 
     return {};
+}
+
+Result<RequestType>ParserHelper::StrToType( const char* strType )
+{
+    assert(strType != NULL);
+
+    std::string_view Type_View(strType, strlen(strType));
+    auto it = RequestTypeMap.find(Type_View);
+
+    if( it == RequestTypeMap.end() )
+        return MAKE_ERROR(HTTPErrors::eParseError, "Invalid Request Type");
+
+    return it->second;
 }
 }

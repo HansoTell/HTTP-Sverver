@@ -11,7 +11,7 @@
 namespace http {
 
 enum RequestType {
-    GET = 0, POST, HEAD, PUT, PATCH, DELETE, TRACE, OPTIONS, CONNECT
+    GET = 0, POST, HEAD, PUT, PATCH, DELETE, TRACE, OPTIONS, CONNECT, INVALID
 };
 
 struct RequestInfo {
@@ -25,7 +25,6 @@ struct RequestParts
     std::string Header;
     std::string Body;
 };
-
 struct PartsSeperator 
 {
     size_t posEndStartLine;
@@ -33,6 +32,7 @@ struct PartsSeperator
     size_t posStartHeader; 
     size_t posStartBody;      
 };
+
 
 class IParserHelper {
 public:
@@ -63,7 +63,7 @@ public:
 private:
     PartsSeperator defineSeperations( const std::string& request );
     RequestParts splitAllParts( const std::string& request, const PartsSeperator& seperationPoints );
-    Result<RequestType> findType(const char* strType);
+    Result<RequestType> StrToType( const char* strType );
 };
 
 class Parser : public IParser {
@@ -74,7 +74,6 @@ public:
     Parser(const Parser& other) = delete;
     Parser(Parser&& other) = delete;
     ~Parser() = default;
-private:
 private:
     std::unique_ptr<IParserHelper> m_Helper;
 };
