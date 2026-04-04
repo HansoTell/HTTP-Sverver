@@ -3,6 +3,7 @@
 #include "http/HTTPinitialization.h"
 #include "http/Parser.h"
 #include <cassert>
+#include <cctype>
 #include <cstddef>
 #include <cstring>
 #include <string_view>
@@ -73,6 +74,18 @@ static const std::unordered_map<std::string_view, RequestType> RequestTypeMap {
         return getIndex(str, pos);
     }
 
+    const char* SkipWhiteSpaces( const char* str )
+    {
+        if( str == NULL )
+            return NULL;
+        const char* it = str;
+        
+        while( isblank(*it) || (*it) == '\t' )
+            it++;
+
+        return it;
+    }
+
     }
 
 Result<RequestParts> ParserHelper::splitRequest( const std::string& request )
@@ -113,13 +126,30 @@ RequestParts ParserHelper::splitAllParts( const std::string& request, const Part
     return parts;
 }
 
-//brauch dieses ergebnis als out Parameter
-//und alles richtigh bei errorn setzten
-Result<void> ParserHelper::parseStartLine( const std::string& StartLine ) 
+Result<void> ParserHelper::parseStartLine( const std::string& StartLine, RequestInfo& outInfo ) 
 {
-    const char* cStrStartLine = StartLine.c_str();
+    const char* endType = nullptr;
+    auto type_or = getRequestType(StartLine, endType);
 
-    size_t EndPos = cStrHelper::getIndexOfFirstOccOf(cStrStartLine, ' ', '\t');
+    if( type_or.isErr() )
+        return COPY_ERROR(type_or.error());
+
+    outInfo.reqType = type_or.value();
+
+    assert(endType != nullptr);
+    const char* StartURI = cStrHelper::SkipWhiteSpaces(endType);
+    assert(StartURI != nullptr);
+
+    return {};
+}
+
+Result<RequestType> ParserHelper::getRequestType( const std::string& startLine, const char*& outEndType )
+{
+    const char* cStrStartLine = startLine.c_str();
+    outEndType = nullptr;
+
+    const char* EndPosStr = cStrHelper::findFirstOccOf(cStrStartLine, ' ', '\t');
+    size_t EndPos = cStrHelper::getIndex(cStrStartLine, EndPosStr);
     
     if( EndPos == -1 )
         return MAKE_ERROR(HTTPErrors::eParseError, "Cant find seperation");
@@ -133,9 +163,8 @@ Result<void> ParserHelper::parseStartLine( const std::string& StartLine )
     if( type_or.isErr() )
         return COPY_ERROR(type_or.error());
 
-
-
-    return {};
+    outEndType = EndPosStr;
+    return type_or.value();
 }
 
 Result<RequestType>ParserHelper::StrToType( const char* strType )
@@ -150,4 +179,13 @@ Result<RequestType>ParserHelper::StrToType( const char* strType )
 
     return it->second;
 }
+
+Result<std::string> ParserHelper::getURI( const char* StartURI )
+{
+    assert(StartURI != NULL);
+    
+    //Wie machen also theoretisch kann das ja ein \0 sein dass müssten wir überprüfen sonst parsen bis zum nächsten whitespace und yallah
+
+}
+
 }
