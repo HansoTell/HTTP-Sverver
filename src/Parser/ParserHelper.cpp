@@ -5,6 +5,7 @@
 #include <cassert>
 #include <cctype>
 #include <cstddef>
+#include <cstdlib>
 #include <cstring>
 #include <string_view>
 #include <unordered_map>
@@ -225,8 +226,24 @@ Result<std::string> ParserHelper::getURI( const char* StartURI, const char*& out
 
 Result<float> ParserHelper::getVersion( const char* StartVersion )
 {
-    //finden / checken dass davor HTTP steht dann Version konvertieren 
+    assert(StartVerions != NULL);
+    const char* splitter = strchr(StartVersion, '/');
+    if( !splitter )
+        return MAKE_ERROR(HTTPErrors::eParseError, "Couldnt idetify Version");
+    size_t SplitterIdx = cStrHelper::getIndex(StartVersion, splitter);
 
+    char buff[SplitterIdx+1];
+    strncpy(buff, StartVersion, SplitterIdx);
+    buff[SplitterIdx] = '\0';
+
+    if( strcmp(buff, "HTTP\0") != 0)
+        return MAKE_ERROR(HTTPErrors::eParseError, "Couldnt idetify Version");
+
+    float Version = strtof((splitter++), nullptr);
+    if( Version == 0 )
+        return MAKE_ERROR(HTTPErrors::eParseError, "Couldnt idetify Version");
+
+    return Version;
 }
 
 }
