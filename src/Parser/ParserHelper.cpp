@@ -129,6 +129,8 @@ RequestParts ParserHelper::splitAllParts( const std::string& request, const Part
 Result<void> ParserHelper::parseStartLine( const std::string& StartLine, RequestInfo& outInfo ) 
 {
     const char* endType = nullptr;
+    const char* endURI = nullptr;
+
     auto type_or = getRequestType(StartLine, endType);
 
     if( type_or.isErr() )
@@ -139,6 +141,23 @@ Result<void> ParserHelper::parseStartLine( const std::string& StartLine, Request
     assert(endType != nullptr);
     const char* StartURI = cStrHelper::SkipWhiteSpaces(endType);
     assert(StartURI != nullptr);
+    
+    auto uri_or = getURI(StartURI, endURI);
+
+    if( uri_or.isErr() )
+        return uri_or.error();
+
+    outInfo.URI = std::move(uri_or.value());
+    assert(endURI != nullptr);
+    const char* StartVersion = cStrHelper::SkipWhiteSpaces(endURI);
+    assert(StartVersion != nullptr);
+
+    auto version_or = getVersion(StartVersion);
+
+    if( type_or.isErr() )
+        return COPY_ERROR(type_or.error());
+
+    outInfo.Version = version_or.value();
 
     return {};
 }
@@ -180,11 +199,33 @@ Result<RequestType>ParserHelper::StrToType( const char* strType )
     return it->second;
 }
 
-Result<std::string> ParserHelper::getURI( const char* StartURI )
+Result<std::string> ParserHelper::getURI( const char* StartURI, const char*& outEndURI )
 {
     assert(StartURI != NULL);
+    outEndURI = nullptr;
+
+    if( (*StartURI) == '\0' )
+        return MAKE_ERROR(HTTPErrors::eParseError, "No URI");
+
+    const char* endURI = cStrHelper::findFirstOccOf(StartURI, ' ', '\t');
+    size_t endURIIdx = cStrHelper::getIndex(StartURI, endURI)   ;
+
+    if( endURIIdx == -1 )
+        return MAKE_ERROR(HTTPErrors::eParseError, "Cant find seperation");
+
     
-    //Wie machen also theoretisch kann das ja ein \0 sein dass müssten wir überprüfen sonst parsen bis zum nächsten whitespace und yallah
+    char buff[endURIIdx+1];
+    strncpy(buff, StartURI, endURIIdx);
+    buff[endURIIdx] = '\0';
+
+    outEndURI = endURI;
+
+    return std::string(buff);
+}
+
+Result<float> ParserHelper::getVersion( const char* StartVersion )
+{
+    //finden / checken dass davor HTTP steht dann Version konvertieren 
 
 }
 

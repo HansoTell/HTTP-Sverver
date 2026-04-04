@@ -17,6 +17,8 @@ enum RequestType {
 struct RequestInfo {
     RequestType reqType;
     u_int16_t statusCode; 
+    std::string URI;
+    float Version;
 };
 
 struct RequestParts 
@@ -65,7 +67,8 @@ private:
     RequestParts splitAllParts( const std::string& request, const PartsSeperator& seperationPoints );
     Result<RequestType> StrToType( const char* strType );
     Result<RequestType> getRequestType( const std::string& startLine, const char*& outEndType );
-    Result<std::string> getURI( const char* StartURI );
+    Result<std::string> getURI( const char* StartURI, const char*& outEndURI );
+    Result<float> getVersion( const char* StartVersion );
 };
 
 class Parser : public IParser {
