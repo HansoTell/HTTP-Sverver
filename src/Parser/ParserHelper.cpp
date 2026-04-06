@@ -94,10 +94,15 @@ Result<RequestParts> ParserHelper::splitRequest( const std::string& request )
 {
     PartsSeperator seperationPoints = defineSeperations( request );
 
-    if(seperationPoints.posEndStartLine == std::string::npos || seperationPoints.posEndHeader == std::string::npos )
+    if(seperationPoints.posEndStartLine == std::string::npos || seperationPoints.posEndHeader == std::string::npos || seperationPoints.posEndHeader < seperationPoints.posEndStartLine )
         return MAKE_ERROR(HTTPErrors::eParseError, "Failed to identify HTTP parts");
 
-    return splitAllParts(request, seperationPoints);
+    RequestParts parts = splitAllParts(request, seperationPoints); 
+
+    if( parts.StartLine.empty() )
+        return MAKE_ERROR(HTTPErrors::eParseError, "Failed to identify HTTP parts");
+
+    return parts;
 }
 
 PartsSeperator ParserHelper::defineSeperations( const std::string& request )

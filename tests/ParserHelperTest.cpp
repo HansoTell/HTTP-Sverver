@@ -5,7 +5,6 @@
 #include "Logger/Logger.h"
 #include "http/Parser.h"
 
-
 class ParserHelperTest : public ::testing::Test {
 protected:
     std::unique_ptr<http::ParserHelper> parser;
@@ -22,20 +21,6 @@ protected:
         DESTROY_LOGGER();
     }
 };
-
-//Split Request --> das ganze zu TEST_P suite machen ig
-TEST_F(ParserHelperTest, splitRequest_ValidRequest_ReturnsSplittetRequest)
-{
-    std::string request = 
-        "GET / HTTP/1.1\r\nHEADER Sachen\r\n\r\nBody";
-
-    auto res = parser->splitRequest(request);
-
-    ASSERT_TRUE(res.isOK());
-    EXPECT_STREQ(res.value().StartLine.c_str(), "GET / HTTP/1.1");
-    EXPECT_STREQ(res.value().Header.c_str(), "HEADER Sachen");
-    EXPECT_STREQ(res.value().Body.c_str(), "Body");
-}
 
 struct SplitRequestTestCase 
 {
@@ -80,6 +65,7 @@ TEST_P(SplitRequestTest, SplitRequestTests)
     }
 }
 
+//fuzz Tests ...  --> können da unterschiedliche dinge probieren zum lernen..
 
 
 
