@@ -6,7 +6,6 @@
 #include <thread>
 
 #include "Error/Errorcodes.h"
-#include "http/HTTPinitialization.h"
 #include "http/listener.h"
 #include "mocks/MOCKListenerCore.h"
 #include "steam/steamnetworkingtypes.h"

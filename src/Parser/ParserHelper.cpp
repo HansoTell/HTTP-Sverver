@@ -7,6 +7,7 @@
 #include <cstddef>
 #include <cstdlib>
 #include <cstring>
+#include <string>
 #include <string_view>
 #include <unordered_map>
 
@@ -108,8 +109,8 @@ PartsSeperator ParserHelper::defineSeperations( const std::string& request )
 
     size_t StartBody = seperator.posEndHeader + HEADER_END_LENGTH;
 
-    seperator.posStartHeader = (seperator.posEndStartLine == seperator.posEndHeader) ? seperator.posEndStartLine + CRLF_LENGTH : -1;
-    seperator.posStartBody = (StartBody < request.size()) ? StartBody : -1;
+    seperator.posStartHeader = (seperator.posEndStartLine != seperator.posEndHeader) ? seperator.posEndStartLine + CRLF_LENGTH : std::string::npos;
+    seperator.posStartBody = (StartBody < request.size()) ? StartBody : std::string::npos;
 
     return seperator;
 }
@@ -119,9 +120,9 @@ RequestParts ParserHelper::splitAllParts( const std::string& request, const Part
     RequestParts parts {};
 
     parts.StartLine = request.substr(0, seperationPoints.posEndStartLine);
-    parts.Header = (seperationPoints.posStartHeader != -1) 
+    parts.Header = (seperationPoints.posStartHeader != std::string::npos) 
         ? request.substr(seperationPoints.posStartHeader, seperationPoints.posEndHeader - seperationPoints.posStartHeader) : "";
-    parts.Body = (seperationPoints.posStartBody != -1) 
+    parts.Body = (seperationPoints.posStartBody != std::string::npos) 
         ? request.substr(seperationPoints.posStartBody) : "";
 
     return parts;
@@ -226,7 +227,7 @@ Result<std::string> ParserHelper::getURI( const char* StartURI, const char*& out
 
 Result<float> ParserHelper::getVersion( const char* StartVersion )
 {
-    assert(StartVerions != NULL);
+    assert(StartVersion != NULL);
     const char* splitter = strchr(StartVersion, '/');
     if( !splitter )
         return MAKE_ERROR(HTTPErrors::eParseError, "Couldnt idetify Version");
@@ -245,5 +246,8 @@ Result<float> ParserHelper::getVersion( const char* StartVersion )
 
     return Version;
 }
+
+Result<void> ParserHelper::parseHeader( const std::string& Header ) { return {}; }
+Result<void> ParserHelper::parseBoady( const std::string& Boady ) { return {}; }
 
 }
