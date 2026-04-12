@@ -145,9 +145,7 @@ Result<void> ParserHelper::parseStartLine( const std::string& StartLine, Request
 
     outInfo.reqType = type_or.value();
 
-    assert(endType != nullptr);
     const char* StartURI = cStrHelper::SkipWhiteSpaces(endType);
-    assert(StartURI != nullptr);
     
     auto uri_or = getURI(StartURI, endURI);
 
@@ -155,9 +153,7 @@ Result<void> ParserHelper::parseStartLine( const std::string& StartLine, Request
         return uri_or.error();
 
     outInfo.URI = std::move(uri_or.value());
-    assert(endURI != nullptr);
     const char* StartVersion = cStrHelper::SkipWhiteSpaces(endURI);
-    assert(StartVersion != nullptr);
 
     auto version_or = getVersion(StartVersion);
 

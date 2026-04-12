@@ -1,4 +1,5 @@
 #include "gtest/gtest.h"
+#include <cstddef>
 #include <gtest/gtest.h>
 #include <memory>
 #include "Error/Errorcodes.h"
@@ -65,8 +66,81 @@ TEST_P(SplitRequestTest, SplitRequestTests)
     }
 }
 
-//fuzz Tests ...  --> können da unterschiedliche dinge probieren zum lernen..
+//Random, fuzzer --> könnten noch andere fuzzer varianten testen..
 
+std::string GenerateRandomString( int maxlen )
+{
+    static const std::string chars = 
+        "abcdefghijklmnopqrstuvwxyz"
+        "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+        "0123456789"
+        "\r\n: /";
 
+    size_t len = rand() % maxlen;
+
+    std::string res;
+
+    for( int i = 0; i < len; i++ )
+    {
+        res += chars[rand() % chars.size()]; 
+    }
+
+    return res;
+}
+
+#define MAX_INPUT_LENGTH 100
+TEST_F(ParserHelperTest, RandomFuzzer_NoError) 
+{
+    for( int i = 0; i < 1000; i++ )
+    {
+        std::string input = GenerateRandomString(MAX_INPUT_LENGTH);
+
+        try 
+        {
+            auto res = parser->splitRequest(input);
+
+            if( res.isOK() )
+                EXPECT_EQ(res.value().StartLine.find("\r\n"), std::string::npos);
+            
+
+        } catch (...) {
+            FAIL() << "Crash with input: " << input;
+        }
+    }
+}
 
 //ParseStartLine
+struct ParseStartLineTestCase 
+{
+    bool isSuccess;
+    std::string startLine;
+    http::RequestType type;
+    std::string URI; 
+    float Version;
+};
+
+class ParseStartLineTest : public ParserHelperTest, public ::testing::WithParamInterface<ParseStartLineTestCase> {};
+
+INSTANTIATE_TEST_SUITE_P(StartLineParses, ParseStartLineTest, ::testing::Values(
+    ParseStartLineTestCase{}
+
+)); 
+
+TEST_P(ParseStartLineTest, StartLineParserTestsSuite)
+{
+    auto param = GetParam();
+    http::RequestInfo reqInfo {};
+
+    auto res = parser->parseStartLine(param.startLine, reqInfo);
+
+    if( param.isSuccess )
+    {
+        ASSERT_TRUE(res.isOK());
+        EXPECT_EQ(reqInfo.reqType, param.type);
+        EXPECT_EQ(reqInfo.URI, param.URI);
+        EXPECT_EQ(reqInfo.Version, param.Version);
+    } else {
+        ASSERT_TRUE(res.isErr());
+        EXPECT_EQ(res.error().ErrorCode, http::HTTPErrors::eParseError);
+    }
+}
