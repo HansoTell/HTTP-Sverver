@@ -116,16 +116,66 @@ struct ParseStartLineTestCase
     std::string startLine;
     http::RequestType type;
     std::string URI; 
-    float Version;
+    http::Version version;
 };
 
 class ParseStartLineTest : public ParserHelperTest, public ::testing::WithParamInterface<ParseStartLineTestCase> {};
 
-//muss ich alle request typen prüfen um sicher zu gehen? wäre sicherer ??
-INSTANTIATE_TEST_SUITE_P(StartLineParses, ParseStartLineTest, ::testing::Values(
-    ParseStartLineTestCase{ true, "GET / HTTP/1.1", http::RequestType::GET, "/", 1.1 },
-    ParseStartLineTestCase{ true, "POST /src/index.html HTTP/1.0", http::RequestType::POST, "/src/index.html", 1.0 },
-    ParseStartLineTestCase{ true, "PUT / \t\tHTTP/1.0", http::RequestType::PUT, "/", 1.0 }
+INSTANTIATE_TEST_SUITE_P(CorrectParsingOfTypes, ParseStartLineTest, ::testing::Values(
+    ParseStartLineTestCase{ true, "GET / HTTP/1.1", http::RequestType::GET, "/", { 1, 1 } },
+    ParseStartLineTestCase{ true, "POST / HTTP/1.1", http::RequestType::POST, "/", { 1, 1 } },
+    ParseStartLineTestCase{ true, "HEAD / HTTP/1.1", http::RequestType::HEAD, "/", { 1, 1 } },
+    ParseStartLineTestCase{ true, "PUT / HTTP/1.1", http::RequestType::PUT, "/", { 1, 1 } },
+    ParseStartLineTestCase{ true, "PATCH / HTTP/1.1", http::RequestType::PATCH, "/", { 1, 1 } },
+    ParseStartLineTestCase{ true, "DELETE / HTTP/1.1", http::RequestType::DELETE, "/", { 1, 1 } },
+    ParseStartLineTestCase{ true, "TRACE / HTTP/1.1", http::RequestType::TRACE, "/", { 1, 1 }  },
+    ParseStartLineTestCase{ true, "OPTIONS / HTTP/1.1", http::RequestType::OPTIONS, "/", { 1, 1 } },
+    ParseStartLineTestCase{ false, "get / HTTP/1.1", http::RequestType::GET, "", { 1, 1 } },
+    ParseStartLineTestCase{ false, "INVALID / HTTP/1.1", http::RequestType::INVALID, "", { 1, 1 } }
+)); 
+
+INSTANTIATE_TEST_SUITE_P(BasicCorrectTests, ParseStartLineTest, ::testing::Values(
+    ParseStartLineTestCase{ true, "CONNECT / HTTP/1.1", http::RequestType::CONNECT, "/", { 1, 1 } },
+    ParseStartLineTestCase{ true, "POST /src/index.html HTTP/1.0", http::RequestType::POST, "/src/index.html", { 1, 0 } }
+)); 
+
+INSTANTIATE_TEST_SUITE_P(MultipleWhiteSPacesorTabs, ParseStartLineTest, ::testing::Values(
+    ParseStartLineTestCase{ true, "PUT    /      HTTP/1.0", http::RequestType::PUT, "/", { 1, 0 } },
+    ParseStartLineTestCase{ true, "      PUT / HTTP/1.0", http::RequestType::PUT, "/", { 1, 0 } },
+    ParseStartLineTestCase{ true, "PUT / HTTP/1.0       ", http::RequestType::PUT, "/", { 1, 0 } },
+    ParseStartLineTestCase{ true, "PUT\t/\t\tHTTP/1.0", http::RequestType::PUT, "/", { 1, 0 }  },
+    ParseStartLineTestCase{ true, "PUT    \t /\t   HTTP/1.0", http::RequestType::PUT, "/", { 1, 0 } }
+)); 
+
+INSTANTIATE_TEST_SUITE_P(InvalidSysntax, ParseStartLineTest, ::testing::Values(
+    ParseStartLineTestCase{ false, "/ PUT HTTP/1.0", http::RequestType::GET, "", { 1, 0 } },
+    ParseStartLineTestCase{ false, "", http::RequestType::GET, "", { 1, 0 } },
+    ParseStartLineTestCase{ false, "/ HTTP/1.0", http::RequestType::GET, "", { 1, 0 } },
+    ParseStartLineTestCase{ false, "GET / HT TP/1.0", http::RequestType::GET, "", { 1, 0 } }
+)); 
+
+INSTANTIATE_TEST_SUITE_P(URIEdgeCases, ParseStartLineTest, ::testing::Values(
+    ParseStartLineTestCase{ true, "GET /index.html HTTP/1.1", http::RequestType::GET, "/index.html", { 1, 1 } },
+    ParseStartLineTestCase{ true, "GET /a/b/c HTTP/1.1", http::RequestType::GET, "/a/b/c", { 1, 1 } },
+    ParseStartLineTestCase{ true, "GET /?query=1 HTTP/1.1", http::RequestType::GET, "/?query=1", { 1, 1 } },
+    ParseStartLineTestCase{ true, "GET /index.html HTTP/1.1", http::RequestType::GET, "/index.html", { 1, 1 } },
+    ParseStartLineTestCase{ true, "GET /index.html HTTP/1.1", http::RequestType::GET, "/index.html", { 1, 1 } },
+    ParseStartLineTestCase{ false, "GET HTTP/1.0", http::RequestType::GET, "", { 1, 0 } },
+    ParseStartLineTestCase{ false, "GET  HTTP/1.0", http::RequestType::GET, "", { 1, 0 } }
+)); 
+
+INSTANTIATE_TEST_SUITE_P(VersionCases, ParseStartLineTest, ::testing::Values(
+    ParseStartLineTestCase{ false, "GET / HTTP/1", http::RequestType::GET, "", { 1, 0 } },
+    ParseStartLineTestCase{ false, "GET / HTTP/", http::RequestType::GET, "", { 1, 0 } },
+    ParseStartLineTestCase{ false, "GET / HTTP/1.a", http::RequestType::GET, "", { 1, 0 } },
+    ParseStartLineTestCase{ false, "GET / HTTP/1.1abc", http::RequestType::GET, "", { 1, 0 } }
+)); 
+
+INSTANTIATE_TEST_SUITE_P(TokenNumberCheck, ParseStartLineTest, ::testing::Values(
+    ParseStartLineTestCase{ false, "GET / HTTP/1.1 EXTRA", http::RequestType::GET, "", { 1, 0 } },
+    ParseStartLineTestCase{ false, "GET / HTTP/1.1 EXTRA MORE", http::RequestType::GET, "", { 1, 0 } },
+    ParseStartLineTestCase{ false, "GET", http::RequestType::GET, "", { 1, 0 } },
+    ParseStartLineTestCase{ false, "GET /", http::RequestType::GET, "", { 1, 0 } }
 )); 
 
 TEST_P(ParseStartLineTest, StartLineParserTestsSuite)
@@ -139,10 +189,13 @@ TEST_P(ParseStartLineTest, StartLineParserTestsSuite)
     {
         ASSERT_TRUE(res.isOK());
         EXPECT_EQ(reqInfo.reqType, param.type);
+        EXPECT_FALSE(reqInfo.URI.empty());
         EXPECT_EQ(reqInfo.URI, param.URI);
-        EXPECT_EQ(reqInfo.Version, param.Version);
+        EXPECT_EQ(reqInfo.version.major, param.version.major);
+        EXPECT_EQ(reqInfo.version.minor, param.version.minor);
     } else {
         ASSERT_TRUE(res.isErr());
         EXPECT_EQ(res.error().ErrorCode, http::HTTPErrors::eParseError);
     }
 }
+

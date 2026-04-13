@@ -4,6 +4,7 @@
 #include "http/Parser.h"
 #include <cassert>
 #include <cctype>
+#include <charconv>
 #include <cstddef>
 #include <cstdlib>
 #include <cstring>
@@ -30,6 +31,27 @@ static const std::unordered_map<std::string_view, RequestType> RequestTypeMap {
     { "OPTIONS", RequestType::OPTIONS },
     { "CONNECT", RequestType::CONNECT }
 };
+
+static void ltrim( std::string& s )
+{
+    s.erase(s.begin(), std::find_if(s.begin(), s.end(), [](unsigned char ch) {
+            return !std::isspace(ch);
+        }));
+}
+
+static void rtrim( std::string& s )
+{
+    s.erase(std::find_if(s.rbegin(), s.rend(), [](unsigned char ch) {
+        return !std::isspace(ch);
+    }).base(), s.end());
+}
+
+static void trim( std::string& s )
+{
+    rtrim(s);
+    ltrim(s);
+}
+
 
     namespace cStrHelper {
     //finds the index of a char based on the pointer. -1 if pos not in str
@@ -64,7 +86,7 @@ static const std::unordered_map<std::string_view, RequestType> RequestTypeMap {
             if( (*it) == c1 || (*it) == c2 )
                 return it;
 
-            str++;
+            it++;
         }
 
         return NULL;
@@ -133,12 +155,16 @@ RequestParts ParserHelper::splitAllParts( const std::string& request, const Part
     return parts;
 }
 
-Result<void> ParserHelper::parseStartLine( const std::string& StartLine, RequestInfo& outInfo ) 
+Result<void> ParserHelper::parseStartLine( std::string& StartLine, RequestInfo& outInfo ) 
 {
     const char* endType = nullptr;
     const char* endURI = nullptr;
 
-    auto type_or = getRequestType(StartLine, endType);
+    trim(StartLine);
+
+    const char* cStrStartLine = StartLine.c_str();
+
+    auto type_or = getRequestType(cStrStartLine, endType);
 
     if( type_or.isErr() )
         return COPY_ERROR(type_or.error());
@@ -157,27 +183,26 @@ Result<void> ParserHelper::parseStartLine( const std::string& StartLine, Request
 
     auto version_or = getVersion(StartVersion);
 
-    if( type_or.isErr() )
-        return COPY_ERROR(type_or.error());
+    if( version_or.isErr() )
+        return COPY_ERROR(version_or.error());
 
-    outInfo.Version = version_or.value();
+    outInfo.version = version_or.value();
 
     return {};
 }
 
-Result<RequestType> ParserHelper::getRequestType( const std::string& startLine, const char*& outEndType )
+Result<RequestType> ParserHelper::getRequestType( const char* startLine, const char*& outEndType )
 {
-    const char* cStrStartLine = startLine.c_str();
     outEndType = nullptr;
 
-    const char* EndPosStr = cStrHelper::findFirstOccOf(cStrStartLine, ' ', '\t');
-    size_t EndPos = cStrHelper::getIndex(cStrStartLine, EndPosStr);
+    const char* EndPosStr = cStrHelper::findFirstOccOf(startLine, ' ', '\t');
+    size_t EndPos = cStrHelper::getIndex(startLine, EndPosStr);
     
     if( EndPos == -1 )
         return MAKE_ERROR(HTTPErrors::eParseError, "Cant find seperation");
     
     char buff[EndPos+1];
-    strncpy(buff, cStrStartLine, EndPos);
+    strncpy(buff, startLine, EndPos);
     buff[EndPos] = '\0';
 
     auto type_or = StrToType(buff);
@@ -226,7 +251,7 @@ Result<std::string> ParserHelper::getURI( const char* StartURI, const char*& out
     return std::string(buff);
 }
 
-Result<float> ParserHelper::getVersion( const char* StartVersion )
+Result<Version> ParserHelper::getVersion( const char* StartVersion )
 {
     assert(StartVersion != NULL);
     const char* splitter = strchr(StartVersion, '/');
@@ -241,11 +266,33 @@ Result<float> ParserHelper::getVersion( const char* StartVersion )
     if( strcmp(buff, "HTTP\0") != 0)
         return MAKE_ERROR(HTTPErrors::eParseError, "Couldnt idetify Version");
 
-    float Version = strtof((splitter++), nullptr);
-    if( Version == 0 )
-        return MAKE_ERROR(HTTPErrors::eParseError, "Couldnt idetify Version");
+    Version version {};
 
-    return Version;
+    const char* startVersion = ++splitter;
+    const char* versionSplit = strchr(startVersion, '.');
+    if( versionSplit == NULL )
+        return MAKE_ERROR(HTTPErrors::eParseError, "Invalid Version");
+
+    size_t idx = cStrHelper::getIndex(startVersion, versionSplit);
+    const char* startMinor = ++versionSplit;
+
+    char majorStr[idx+1];
+    strncpy(majorStr, startVersion, idx);
+    majorStr[idx] = '\0';
+
+    int major = atoi(majorStr);
+    int minor;
+
+    const char* EndMinor = (startMinor + strlen(startMinor));
+    auto [ptr, ec] = std::from_chars(startMinor, EndMinor, minor);
+
+    if( major == 0 || ec != std::errc() || ptr != EndMinor )
+        return MAKE_ERROR(HTTPErrors::eParseError, "Invalid Version");
+
+    version.major = major;
+    version.minor = minor;
+
+    return version;
 }
 
 Result<void> ParserHelper::parseHeader( const std::string& Header ) { return {}; }

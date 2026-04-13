@@ -19,7 +19,7 @@ RequestInfo Parser::parse( const std::string& message ){
         return Info;
     }
     
-    const RequestParts& parts = parts_or.value();
+    RequestParts parts = std::move(parts_or.value());
 
     auto res = m_Helper->parseStartLine( parts.StartLine, Info );
 

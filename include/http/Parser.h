@@ -14,11 +14,17 @@ enum RequestType {
     GET = 0, POST, HEAD, PUT, PATCH, DELETE, TRACE, OPTIONS, CONNECT, INVALID
 };
 
+struct Version 
+{
+    int major;
+    int minor;
+};
+
 struct RequestInfo {
     RequestType reqType;
     u_int16_t statusCode; 
     std::string URI;
-    float Version;
+    Version version;
 };
 
 struct RequestParts 
@@ -40,7 +46,7 @@ class IParserHelper {
 public:
     virtual ~IParserHelper() = default;
     virtual Result<RequestParts> splitRequest( const std::string& request ) = 0;
-    virtual Result<void> parseStartLine( const std::string& startLine, RequestInfo& outInfo ) = 0;
+    virtual Result<void> parseStartLine( std::string& startLine, RequestInfo& outInfo ) = 0;
     virtual Result<void> parseHeader( const std::string& Header ) = 0;
     virtual Result<void> parseBoady( const std::string& Boady ) = 0;
 };
@@ -54,7 +60,7 @@ public:
 class ParserHelper : public IParserHelper {
 public:
     Result<RequestParts> splitRequest( const std::string& request ) override;
-    Result<void> parseStartLine( const std::string& startLine, RequestInfo& outInfo ) override;
+    Result<void> parseStartLine( std::string& startLine, RequestInfo& outInfo ) override;
     Result<void> parseHeader( const std::string& Header ) override;
     Result<void> parseBoady( const std::string& Boady ) override;
 public:
@@ -66,9 +72,9 @@ private:
     PartsSeperator defineSeperations( const std::string& request );
     RequestParts splitAllParts( const std::string& request, const PartsSeperator& seperationPoints );
     Result<RequestType> StrToType( const char* strType );
-    Result<RequestType> getRequestType( const std::string& startLine, const char*& outEndType );
+    Result<RequestType> getRequestType( const char* startLine, const char*& outEndType );
     Result<std::string> getURI( const char* StartURI, const char*& outEndURI );
-    Result<float> getVersion( const char* StartVersion );
+    Result<Version> getVersion( const char* StartVersion );
 };
 
 class Parser : public IParser {
