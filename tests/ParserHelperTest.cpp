@@ -121,9 +121,11 @@ struct ParseStartLineTestCase
 
 class ParseStartLineTest : public ParserHelperTest, public ::testing::WithParamInterface<ParseStartLineTestCase> {};
 
+//muss ich alle request typen prüfen um sicher zu gehen? wäre sicherer ??
 INSTANTIATE_TEST_SUITE_P(StartLineParses, ParseStartLineTest, ::testing::Values(
-    ParseStartLineTestCase{}
-
+    ParseStartLineTestCase{ true, "GET / HTTP/1.1", http::RequestType::GET, "/", 1.1 },
+    ParseStartLineTestCase{ true, "POST /src/index.html HTTP/1.0", http::RequestType::POST, "/src/index.html", 1.0 },
+    ParseStartLineTestCase{ true, "PUT / \t\tHTTP/1.0", http::RequestType::PUT, "/", 1.0 }
 )); 
 
 TEST_P(ParseStartLineTest, StartLineParserTestsSuite)
