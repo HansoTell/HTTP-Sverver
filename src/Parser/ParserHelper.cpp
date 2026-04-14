@@ -295,7 +295,18 @@ Result<Version> ParserHelper::getVersion( const char* StartVersion )
     return version;
 }
 
-Result<void> ParserHelper::parseHeader( const std::string& Header ) { return {}; }
+Result<void> ParserHelper::parseHeader( std::string& Header ) 
+{
+    trim(Header);
+    const char* HeadercStr = Header.c_str();
+
+
+
+    return {}; 
+}
+
+
+
 Result<void> ParserHelper::parseBoady( const std::string& Boady ) { return {}; }
 
 }

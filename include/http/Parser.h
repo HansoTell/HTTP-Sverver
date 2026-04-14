@@ -47,7 +47,7 @@ public:
     virtual ~IParserHelper() = default;
     virtual Result<RequestParts> splitRequest( const std::string& request ) = 0;
     virtual Result<void> parseStartLine( std::string& startLine, RequestInfo& outInfo ) = 0;
-    virtual Result<void> parseHeader( const std::string& Header ) = 0;
+    virtual Result<void> parseHeader( std::string& Header ) = 0;
     virtual Result<void> parseBoady( const std::string& Boady ) = 0;
 };
 
@@ -61,7 +61,7 @@ class ParserHelper : public IParserHelper {
 public:
     Result<RequestParts> splitRequest( const std::string& request ) override;
     Result<void> parseStartLine( std::string& startLine, RequestInfo& outInfo ) override;
-    Result<void> parseHeader( const std::string& Header ) override;
+    Result<void> parseHeader( std::string& Header ) override;
     Result<void> parseBoady( const std::string& Boady ) override;
 public:
     ParserHelper() = default;
