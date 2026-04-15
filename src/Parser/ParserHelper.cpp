@@ -1,6 +1,7 @@
 #include "Error/Error.h"
 #include "Error/Errorcodes.h"
 #include "http/HTTPinitialization.h"
+#include "http/HeaderFelder.h"
 #include "http/Parser.h"
 #include <cassert>
 #include <cctype>
@@ -30,6 +31,42 @@ static const std::unordered_map<std::string_view, RequestType> RequestTypeMap {
     { "TRACE", RequestType::TRACE },
     { "OPTIONS", RequestType::OPTIONS },
     { "CONNECT", RequestType::CONNECT }
+};
+
+static const std::unordered_map<std::string_view, RequestHeader> RequestHeaderMap 
+{
+    { "ACCEPT", RequestHeader::Accept },
+    { "ACCEPT-CHARSET", RequestHeader::Accept_Charset},
+    { "ACCEPT-ENCODING", RequestHeader::Accept_Encoding },
+    { "ACCEPT-LANGUAGE", RequestHeader::Accept_Language },
+    { "AUTHORIZATION", RequestHeader::Authorization },
+    { "CACHE-CONTROLE", RequestHeader::Cache_Controle },
+    { "CONNECTION", RequestHeader::Connection },
+    { "COOCKIE", RequestHeader::Cookie },
+    { "CONTENT-LENGTH", RequestHeader::Content_Length },
+    { "CONTENT-MD5", RequestHeader::Content_MD5},
+    { "CONTETN-TYPE", RequestHeader::Content_Type },
+    { "DATE", RequestHeader::Date },
+    { "EXPECT", RequestHeader::Expect },
+    { "FORWARDED", RequestHeader::Forwarded},
+    { "FROM", RequestHeader::From },
+    { "HOST", RequestHeader::Host },
+    { "IF-MATCH", RequestHeader::If_Match },
+    { "IF-MODIFIED_SINCE", RequestHeader::If_Modified_Since },
+    { "IF-NONE-MATCH", RequestHeader::If_None_Match },
+    { "IF-RANGE", RequestHeader::If_Range },
+    { "IF-UNMODIFIED-SINCE", RequestHeader::If_Unmodified_Since },
+    { "MAX-FORWARDS", RequestHeader::Max_Forwards },
+    { "PRAGMA", RequestHeader::Pragma },
+    { "PROXY-AUTHORIZATION", RequestHeader::Proxy_Authorization },
+    { "RANGE", RequestHeader::Range },
+    { "REFER", RequestHeader::Referer },
+    { "TE", RequestHeader::TE },
+    { "TRANSFER-ENCODING", RequestHeader::Transfer_Encoding },
+    { "UPGRADE", RequestHeader::Upgrade },
+    { "USER-AGENT", RequestHeader::User_Agent },
+    { "VIA", RequestHeader::Via },
+    { "WARNING", RequestHeader::Warning}
 };
 
 static void ltrim( std::string& s )
