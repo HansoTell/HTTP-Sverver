@@ -11,6 +11,7 @@
 #include <cstring>
 #include <string>
 #include <string_view>
+#include <sys/types.h>
 #include <unordered_map>
 
 
@@ -146,6 +147,23 @@ static void trim( std::string& s )
 
         return it;
     }
+    //finds the amount of header fiels in a header
+    u_int32_t countHeaderFields( const char* str )
+    {
+        u_int32_t count = 0;
+        const char* it = str;
+        while( true ) 
+        {
+            const char* posFound = strstr(it, CRLF);
+
+            if( posFound == NULL )
+                return count;
+
+            it = (posFound + CRLF_LENGTH);
+            count++;
+        }
+    }
+    
 
     }
 
@@ -332,11 +350,38 @@ Result<Version> ParserHelper::getVersion( const char* StartVersion )
     return version;
 }
 
-Result<void> ParserHelper::parseHeader( std::string& Header ) 
+Result<void> ParserHelper::parseHeader( std::string& Header, RequestInfo& outInfo ) 
 {
     trim(Header);
     const char* HeadercStr = Header.c_str();
+    const char* it = HeadercStr;
+    outInfo.HeaderFields.reserve(32);
 
+    const char* EndField = NULL;
+    while((EndField = strstr(it, CRLF)) != NULL) 
+    {
+        //split into char array
+        size_t EndFieldIdx = cStrHelper::getIndex(it, EndField);
+        char HeaderField[EndFieldIdx];
+
+        strcpy( HeaderField, it );
+
+
+
+
+
+        //it vorsetzten
+        it = (EndField + CRLF_LENGTH);
+    }
+
+    //an welchem punkt trimmen wir -> und wie?
+
+    //find : and split on it
+    //trim again
+    //convert to upper
+    //find field of header
+    //irgendwo überprüfen das es keine dopplungen gibt
+    //was mit dejm letzten feld machen?? da ist ja kein crlf mehr oder? eig ja shcon weil danach ist ja leerzeile endet ja mit crlfcrlf aber schlißen ja glaube davor schon ab, also doch nein
 
 
     return {}; 

@@ -1,10 +1,12 @@
 #pragma once
 
 #include "HTTPinitialization.h"
+#include "http/HeaderFelder.h"
 #include <cstddef>
 #include <memory>
 #include <string>
 #include <sys/types.h>
+#include <vector>
 
 #define DEAFULT_SPLITTER std::make_unique<Splitter>()
 
@@ -20,11 +22,19 @@ struct Version
     int minor;
 };
 
-struct RequestInfo {
+struct Headers 
+{
+    RequestHeader field;
+    std::string value;
+};
+
+struct RequestInfo 
+{
     RequestType reqType;
     u_int16_t statusCode; 
     std::string URI;
     Version version;
+    std::vector<Headers> HeaderFields;
 };
 
 struct RequestParts 
@@ -47,7 +57,7 @@ public:
     virtual ~IParserHelper() = default;
     virtual Result<RequestParts> splitRequest( const std::string& request ) = 0;
     virtual Result<void> parseStartLine( std::string& startLine, RequestInfo& outInfo ) = 0;
-    virtual Result<void> parseHeader( std::string& Header ) = 0;
+    virtual Result<void> parseHeader( std::string& Header, RequestInfo& outInfo ) = 0;
     virtual Result<void> parseBoady( const std::string& Boady ) = 0;
 };
 
@@ -61,7 +71,7 @@ class ParserHelper : public IParserHelper {
 public:
     Result<RequestParts> splitRequest( const std::string& request ) override;
     Result<void> parseStartLine( std::string& startLine, RequestInfo& outInfo ) override;
-    Result<void> parseHeader( std::string& Header ) override;
+    Result<void> parseHeader( std::string& Header, RequestInfo& outInfo ) override;
     Result<void> parseBoady( const std::string& Boady ) override;
 public:
     ParserHelper() = default;
