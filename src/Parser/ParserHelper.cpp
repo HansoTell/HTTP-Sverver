@@ -163,8 +163,33 @@ static void trim( std::string& s )
             count++;
         }
     }
-    
+    //TrimFunctions
+    char* ltrim( char* str )
+    {
+        while( isspace(*str)) str++;
+        return str;
+    }
+    char* rtrim( char* str )
+    {
+        char* back = str + strlen(str);
+        while( isspace(*--back));
+        *(back+1) = '\0';
+        return str;
 
+    }
+    char* trim( char* str )
+    {
+        return rtrim(ltrim(str));
+    }
+    //converts given cStr to UpperCase
+    void StrToUpper( char* str )
+    {
+        char* it = str;
+        for(char* it = str; *it != '\0'; it++)
+        {
+            *it = toupper(*it);
+        }
+    }
     }
 
 Result<RequestParts> ParserHelper::splitRequest( const std::string& request )
@@ -365,6 +390,19 @@ Result<void> ParserHelper::parseHeader( std::string& Header, RequestInfo& outInf
         char HeaderField[EndFieldIdx];
 
         strcpy( HeaderField, it );
+        char* splitter = strchr( HeaderField, ':' );
+        size_t posSplitter = cStrHelper::getIndex( HeaderField, splitter );
+        char* startHeaderValue = cStrHelper::trim(++splitter);
+        char Field[posSplitter+1];
+        strncpy(Field, HeaderField, posSplitter);
+        Field[posSplitter] = '\0';
+        char* startField = cStrHelper::trim(Field);
+        cStrHelper::StrToUpper( startField );
+
+        
+        
+
+
 
 
 
@@ -374,11 +412,6 @@ Result<void> ParserHelper::parseHeader( std::string& Header, RequestInfo& outInf
         it = (EndField + CRLF_LENGTH);
     }
 
-    //an welchem punkt trimmen wir -> und wie?
-
-    //find : and split on it
-    //trim again
-    //convert to upper
     //find field of header
     //irgendwo überprüfen das es keine dopplungen gibt
     //was mit dejm letzten feld machen?? da ist ja kein crlf mehr oder? eig ja shcon weil danach ist ja leerzeile endet ja mit crlfcrlf aber schlißen ja glaube davor schon ab, also doch nein
