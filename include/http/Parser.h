@@ -81,10 +81,11 @@ public:
 private:
     PartsSeperator defineSeperations( const std::string& request );
     RequestParts splitAllParts( const std::string& request, const PartsSeperator& seperationPoints );
-    Result<RequestType> StrToType( const char* strType );
     Result<RequestType> getRequestType( const char* startLine, const char*& outEndType );
     Result<std::string> getURI( const char* StartURI, const char*& outEndURI );
     Result<Version> getVersion( const char* StartVersion );
+    Result<void> AddHeaderField(std::vector<Headers>& HeadersVec, const char* pStartHeaderLine, const char* pEndHeaderLine);
+    Result<Headers> ParseHeaderLine( char* HeaderLine );
 };
 
 class Parser : public IParser {

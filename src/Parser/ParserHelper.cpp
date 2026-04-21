@@ -3,6 +3,7 @@
 #include "http/HTTPinitialization.h"
 #include "http/HeaderFelder.h"
 #include "http/Parser.h"
+#include <algorithm>
 #include <cassert>
 #include <cctype>
 #include <charconv>
@@ -13,6 +14,7 @@
 #include <string_view>
 #include <sys/types.h>
 #include <unordered_map>
+#include <vector>
 
 
 namespace http {
@@ -271,6 +273,19 @@ Result<void> ParserHelper::parseStartLine( std::string& StartLine, RequestInfo& 
     return {};
 }
 
+static Result<RequestType> StrToType( const char* strType )
+{
+    assert(strType != NULL);
+
+    std::string_view Type_View(strType, strlen(strType));
+    auto it = RequestTypeMap.find(Type_View);
+
+    if( it == RequestTypeMap.end() )
+        return MAKE_ERROR(HTTPErrors::eParseError, "Invalid Request Type");
+
+    return it->second;
+}
+
 Result<RequestType> ParserHelper::getRequestType( const char* startLine, const char*& outEndType )
 {
     outEndType = nullptr;
@@ -292,19 +307,6 @@ Result<RequestType> ParserHelper::getRequestType( const char* startLine, const c
 
     outEndType = EndPosStr;
     return type_or.value();
-}
-
-Result<RequestType>ParserHelper::StrToType( const char* strType )
-{
-    assert(strType != NULL);
-
-    std::string_view Type_View(strType, strlen(strType));
-    auto it = RequestTypeMap.find(Type_View);
-
-    if( it == RequestTypeMap.end() )
-        return MAKE_ERROR(HTTPErrors::eParseError, "Invalid Request Type");
-
-    return it->second;
 }
 
 Result<std::string> ParserHelper::getURI( const char* StartURI, const char*& outEndURI )
@@ -375,49 +377,101 @@ Result<Version> ParserHelper::getVersion( const char* StartVersion )
     return version;
 }
 
+static Result<RequestHeader> StrToField( const char* str )
+{
+    assert(str != NULL);
+
+    std::string_view Field_view(str, strlen(str));
+    auto it = RequestHeaderMap.find(Field_view);
+
+    if( it == RequestHeaderMap.end() )
+        return MAKE_ERROR(HTTPErrors::eParseError, "InvalidHeaderField");
+
+
+    return it->second;
+}
+
+static bool isUniqueHeaderField( RequestHeader eHeaderField, const std::vector<Headers>& HeadersVec )
+{
+    if( std::find_if(HeadersVec.begin(), HeadersVec.end(), [eHeaderField](const Headers header){
+        return header.field == eHeaderField;
+    }) != HeadersVec.end())
+        return false;
+
+    return true;
+}
+
+
 Result<void> ParserHelper::parseHeader( std::string& Header, RequestInfo& outInfo ) 
 {
     trim(Header);
-    const char* HeadercStr = Header.c_str();
-    const char* it = HeadercStr;
-    outInfo.HeaderFields.reserve(32);
+    const char* it = Header.c_str();
+    auto& HeadersVec = outInfo.HeaderFields;
+    HeadersVec.reserve(32);
 
-    const char* EndField = NULL;
-    while((EndField = strstr(it, CRLF)) != NULL) 
+    const char* pEndHeaderLine = NULL;
+    while((pEndHeaderLine = strstr(it, CRLF)) != NULL) 
     {
-        //split into char array
-        size_t EndFieldIdx = cStrHelper::getIndex(it, EndField);
-        char HeaderField[EndFieldIdx];
-
-        strcpy( HeaderField, it );
-        char* splitter = strchr( HeaderField, ':' );
-        size_t posSplitter = cStrHelper::getIndex( HeaderField, splitter );
-        char* startHeaderValue = cStrHelper::trim(++splitter);
-        char Field[posSplitter+1];
-        strncpy(Field, HeaderField, posSplitter);
-        Field[posSplitter] = '\0';
-        char* startField = cStrHelper::trim(Field);
-        cStrHelper::StrToUpper( startField );
-
+        auto res = AddHeaderField(HeadersVec, it, pEndHeaderLine);
+        if( res.isErr() )
+            return res.error();
         
-        
-
-
-
-
-
-
-
-        //it vorsetzten
-        it = (EndField + CRLF_LENGTH);
+        it = (pEndHeaderLine + CRLF_LENGTH);
     }
 
-    //find field of header
-    //irgendwo überprüfen das es keine dopplungen gibt
-    //was mit dejm letzten feld machen?? da ist ja kein crlf mehr oder? eig ja shcon weil danach ist ja leerzeile endet ja mit crlfcrlf aber schlißen ja glaube davor schon ab, also doch nein
-
+    if( *it != '\0')
+        return AddHeaderField(HeadersVec, it, it + strlen(it));
+    
 
     return {}; 
+}
+
+Result<void> ParserHelper::AddHeaderField(std::vector<Headers>& HeaderVec, const char* pStartHeaderLine, const char* pEndHeaderLine)
+{
+    size_t EndHeaderLineIdx = cStrHelper::getIndex(pStartHeaderLine, pEndHeaderLine);
+    char cStrHeaderLine[EndHeaderLineIdx];
+    strcpy( cStrHeaderLine, pStartHeaderLine);
+
+    auto HeaderInfo_or = ParseHeaderLine( cStrHeaderLine );
+    if( HeaderInfo_or.isErr() )
+        return COPY_ERROR(HeaderInfo_or.error());
+
+    Headers HeaderInfo = std::move(HeaderInfo_or.value());
+
+    if( !isUniqueHeaderField(HeaderInfo.field, HeaderVec) )
+        return MAKE_ERROR(HTTPErrors::eParseError, "Duplicate Header Field");
+
+    HeaderVec.push_back( std::move(HeaderInfo) );
+
+    return {};
+}
+
+static const char* ParseHeaderField( char* dest, const char* src, size_t idx )
+{
+    strncpy(dest, src, idx);
+    char* startField = cStrHelper::trim(dest);
+    cStrHelper::StrToUpper( startField );
+    
+    return startField;
+}
+
+Result<Headers> ParserHelper::ParseHeaderLine( char* HeaderLine )
+{
+    char* pSplitter = strchr( HeaderLine, ':' );
+
+    size_t SplitterIdx = cStrHelper::getIndex( HeaderLine, pSplitter );
+    char Field[SplitterIdx+1];
+    Field[SplitterIdx] = '\0';
+
+    const char* startField = ParseHeaderField( Field, HeaderLine, SplitterIdx );
+
+    auto HeaderField_or = StrToField(startField);
+    if( HeaderField_or.isErr() )
+        return COPY_ERROR(HeaderField_or.error());
+
+    char* HeaderValue = cStrHelper::trim(++pSplitter);
+
+    return Result<Headers>( { HeaderField_or.value(), HeaderValue } );
 }
 
 
