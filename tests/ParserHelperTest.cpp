@@ -2,8 +2,10 @@
 #include <cstddef>
 #include <gtest/gtest.h>
 #include <memory>
+#include <vector>
 #include "Error/Errorcodes.h"
 #include "Logger/Logger.h"
+#include "http/HeaderFelder.h"
 #include "http/Parser.h"
 
 class ParserHelperTest : public ::testing::Test {
@@ -194,6 +196,45 @@ TEST_P(ParseStartLineTest, StartLineParserTestsSuite)
         EXPECT_EQ(reqInfo.version.major, param.version.major);
         EXPECT_EQ(reqInfo.version.minor, param.version.minor);
     } else {
+        ASSERT_TRUE(res.isErr());
+        EXPECT_EQ(res.error().ErrorCode, http::HTTPErrors::eParseError);
+    }
+}
+
+//Header Parser Tests
+struct ParseHeaderTestCases 
+{
+    bool success;
+    std::string Header;
+    size_t numHeaderFields;
+    std::vector<http::Headers>HeaderFields;
+};
+
+class ParseHeaderTest : public ParserHelperTest, public ::testing::WithParamInterface<ParseHeaderTestCases> {};
+
+INSTANTIATE_TEST_SUITE_P(Everythingaboutheaderparsing, ParseHeaderTest, ::testing::Values(
+ //   { true, "Accept: Whatever", 1, {} }
+));
+
+TEST_F(ParserHelperTest, HeaderParserTest)
+{
+    http::RequestInfo reqInfo {}; 
+    const auto& HeaderVec = reqInfo.HeaderFields;
+    std::string header = "";
+    auto res = parser->parseHeader(header, reqInfo);
+
+    if( true )
+    {
+        ASSERT_TRUE(res.isOK());
+        EXPECT_EQ(HeaderVec.size(), 1);
+
+        for( int i = 0; i < HeaderVec.size(); i++)
+        {
+            ASSERT_EQ(HeaderVec[i].field, http::RequestHeader::Accept );
+            ASSERT_EQ(HeaderVec[i].value, "" );
+        }
+    } else 
+    {
         ASSERT_TRUE(res.isErr());
         EXPECT_EQ(res.error().ErrorCode, http::HTTPErrors::eParseError);
     }
