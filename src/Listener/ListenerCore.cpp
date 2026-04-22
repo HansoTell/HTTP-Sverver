@@ -6,14 +6,15 @@
 
 namespace http {
 ListenerCore::ListenerCore( std::shared_ptr<ISteamNetworkinSocketsAdapter> interface, std::function<void(HSteamListenSocket, HSteamNetConnection)>  ConnectionServedCallback ) 
-    : m_pInterface(interface), m_ConnectionServedCallback(std::move(ConnectionServedCallback))
+    : m_pInterface(interface), m_ConnectionServedCallback(std::move(ConnectionServedCallback)), m_Socket(k_HSteamListenSocket_Invalid), m_pollGroup(k_HSteamNetPollGroup_Invalid)
 {
         assert(m_pInterface != nullptr);
 }
 
 ListenerCore::~ListenerCore() {}
 
-Result<SocketHandlers> ListenerCore::initSocket( u_int16_t port ){
+Result<SocketHandlers> ListenerCore::initSocket( u_int16_t port )
+{
 
     if( m_Socket != k_HSteamListenSocket_Invalid || m_pollGroup != k_HSteamNetPollGroup_Invalid )
         return MAKE_ERROR(HTTPErrors::eInvalidCall, "A Socket is initialized try Calling DestroySocket first");

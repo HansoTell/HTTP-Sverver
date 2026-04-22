@@ -58,12 +58,13 @@ protected:
 //initSocket
 TEST_F(ListenerCoreTest, initSocketSuccess){
 
+    //fails??
     EXPECT_CALL(*pMockSteam, CreateListenSocketIP(_, _, _)).WillOnce(Return(TEST_HSOCK));
     EXPECT_CALL(*pMockSteam, CreatePollGroup()).WillOnce(Return(TEST_HPOLLGROUP));
 
     auto res = listenerCore->initSocket(TEST_PORT);
 
-    EXPECT_TRUE(res.isOK());
+    ASSERT_TRUE(res.isOK());
     EXPECT_EQ(res.value().m_PollGroup, TEST_HPOLLGROUP);
     EXPECT_EQ(res.value().m_Socket, TEST_HSOCK);
     EXPECT_EQ(listenerCore->getSocketHandler(), TEST_HSOCK);

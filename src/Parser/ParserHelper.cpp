@@ -45,17 +45,17 @@ static const std::unordered_map<std::string_view, RequestHeader> RequestHeaderMa
     { "AUTHORIZATION", RequestHeader::Authorization },
     { "CACHE-CONTROLE", RequestHeader::Cache_Controle },
     { "CONNECTION", RequestHeader::Connection },
-    { "COOCKIE", RequestHeader::Cookie },
+    { "COOKIE", RequestHeader::Cookie },
     { "CONTENT-LENGTH", RequestHeader::Content_Length },
     { "CONTENT-MD5", RequestHeader::Content_MD5},
-    { "CONTETN-TYPE", RequestHeader::Content_Type },
+    { "CONTENT-TYPE", RequestHeader::Content_Type },
     { "DATE", RequestHeader::Date },
     { "EXPECT", RequestHeader::Expect },
     { "FORWARDED", RequestHeader::Forwarded},
     { "FROM", RequestHeader::From },
     { "HOST", RequestHeader::Host },
     { "IF-MATCH", RequestHeader::If_Match },
-    { "IF-MODIFIED_SINCE", RequestHeader::If_Modified_Since },
+    { "IF-MODIFIED-SINCE", RequestHeader::If_Modified_Since },
     { "IF-NONE-MATCH", RequestHeader::If_None_Match },
     { "IF-RANGE", RequestHeader::If_Range },
     { "IF-UNMODIFIED-SINCE", RequestHeader::If_Unmodified_Since },
@@ -63,7 +63,7 @@ static const std::unordered_map<std::string_view, RequestHeader> RequestHeaderMa
     { "PRAGMA", RequestHeader::Pragma },
     { "PROXY-AUTHORIZATION", RequestHeader::Proxy_Authorization },
     { "RANGE", RequestHeader::Range },
-    { "REFER", RequestHeader::Referer },
+    { "REFERER", RequestHeader::Referer },
     { "TE", RequestHeader::TE },
     { "TRANSFER-ENCODING", RequestHeader::Transfer_Encoding },
     { "UPGRADE", RequestHeader::Upgrade },
@@ -422,15 +422,15 @@ Result<void> ParserHelper::parseHeader( std::string& Header, RequestInfo& outInf
     if( *it != '\0')
         return AddHeaderField(HeadersVec, it, it + strlen(it));
     
-
     return {}; 
 }
 
 Result<void> ParserHelper::AddHeaderField(std::vector<Headers>& HeaderVec, const char* pStartHeaderLine, const char* pEndHeaderLine)
 {
     size_t EndHeaderLineIdx = cStrHelper::getIndex(pStartHeaderLine, pEndHeaderLine);
-    char cStrHeaderLine[EndHeaderLineIdx];
-    strcpy( cStrHeaderLine, pStartHeaderLine);
+    char cStrHeaderLine[EndHeaderLineIdx+1];
+    cStrHeaderLine[EndHeaderLineIdx] = '\0';
+    strncpy( cStrHeaderLine, pStartHeaderLine, EndHeaderLineIdx);
 
     auto HeaderInfo_or = ParseHeaderLine( cStrHeaderLine );
     if( HeaderInfo_or.isErr() )

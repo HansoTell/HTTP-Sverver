@@ -206,37 +206,124 @@ struct ParseHeaderTestCases
 {
     bool success;
     std::string Header;
-    size_t numHeaderFields;
     std::vector<http::Headers>HeaderFields;
 };
 
 class ParseHeaderTest : public ParserHelperTest, public ::testing::WithParamInterface<ParseHeaderTestCases> {};
 
-INSTANTIATE_TEST_SUITE_P(Everythingaboutheaderparsing, ParseHeaderTest, ::testing::Values(
- //   { true, "Accept: Whatever", 1, {} }
+INSTANTIATE_TEST_SUITE_P(HeaderTests, ParseHeaderTest, ::testing::Values(
+    ParseHeaderTestCases{ true, 
+        "Accept: Whatever\r\n"
+        "Accept-Charset: accept\r\n"
+        "Accept-Encoding: encodebinary\r\n"
+        "Accept-Language: DE\r\n"
+        "Authorization: true\r\n"
+        "Cache-Controle: controel\r\n"
+        "Connection: notconnecting\r\n"
+        "Cookie: off\r\n"
+        "Content-Length: 123\r\n"
+        "Content-MD5: mp3\r\n"
+        "Content-Type: string\r\n"
+        "Date: heute\r\n"
+        "Expect: the unexpected\r\n"
+        "Forwarded: not\r\n"
+        "From: me and you\r\n"
+        "Host: example.com\r\n"
+        "If-Match: delete\r\n"
+        "If-Modified-Since: no acction\r\n"
+        "If-None-Match: cry\r\n"
+        "If-Range: mach farm auf\r\n"
+        "If-Unmodified-Since: be happy\r\n"
+        "Max-Forwards: 3\r\n"
+        "Pragma: once\r\n"
+        "Proxy-Authorization: allowed\r\n"
+        "Range: Rover\r\n"
+        "Referer: Author\r\n"
+        "TE: PE\r\n"
+        "Transfer-Encoding: Transfer FEE 123\r\n"
+        "Upgrade: Sancho\r\n"
+        "User-Agent: Pablo Escobar\r\n"
+        "Via: Rom\r\n"
+        "Warning: Hot"
+        , {
+        { http::RequestHeader::Accept, "Whatever"},
+        { http::RequestHeader::Accept_Charset, "accept"},
+        { http::RequestHeader::Accept_Encoding, "encodebinary"},
+        { http::RequestHeader::Accept_Language, "DE"},
+        { http::RequestHeader::Authorization, "true"},
+        { http::RequestHeader::Cache_Controle, "controel"},
+        { http::RequestHeader::Connection, "notconnecting"},
+        { http::RequestHeader::Cookie, "off"},
+        { http::RequestHeader::Content_Length, "123"},
+        { http::RequestHeader::Content_MD5, "mp3"},
+        { http::RequestHeader::Content_Type, "string"},
+        { http::RequestHeader::Date, "heute"},
+        { http::RequestHeader::Expect, "the unexpected"},
+        { http::RequestHeader::Forwarded, "not"},
+        { http::RequestHeader::From, "me and you"},
+        { http::RequestHeader::Host, "example.com"},
+        { http::RequestHeader::If_Match, "delete"},
+        { http::RequestHeader::If_Modified_Since, "no acction"},
+        { http::RequestHeader::If_None_Match, "cry"},
+        { http::RequestHeader::If_Range, "mach farm auf"},
+        { http::RequestHeader::If_Unmodified_Since, "be happy"},
+        { http::RequestHeader::Max_Forwards, "3"},
+        { http::RequestHeader::Pragma, "once"},
+        { http::RequestHeader::Proxy_Authorization, "allowed"},
+        { http::RequestHeader::Range, "Rover"},
+        { http::RequestHeader::Referer, "Author"},
+        { http::RequestHeader::TE, "PE"},
+        { http::RequestHeader::Transfer_Encoding, "Transfer FEE 123"},
+        { http::RequestHeader::Upgrade, "Sancho"},
+        { http::RequestHeader::User_Agent, "Pablo Escobar"},
+        { http::RequestHeader::Via, "Rom"},
+        { http::RequestHeader::Warning, "Hot"}
+    } },
+    ParseHeaderTestCases{ true, "Host: example.com\r\nConnection: keep-alive\r\n", { { http::RequestHeader::Host, "example.com"}, { http::RequestHeader::Connection, "keep-alive"} }},
+    ParseHeaderTestCases{ true, "Host: example.com", { { http::RequestHeader::Host, "example.com" } }},
+    //Spaces
+    ParseHeaderTestCases{ true, "Host:        example.com", { { http::RequestHeader::Host, "example.com" } }},
+    ParseHeaderTestCases{ true, "Host:example.com", { { http::RequestHeader::Host, "example.com" } }},
+    ParseHeaderTestCases{ true, "Host       : example.com", { { http::RequestHeader::Host, "example.com" } }},
+    ParseHeaderTestCases{ true, "Host: example.com       ", { { http::RequestHeader::Host, "example.com" } }},
+    ParseHeaderTestCases{ true, "       Host: example.com", { { http::RequestHeader::Host, "example.com" } }},
+    //SpecialValues
+    ParseHeaderTestCases{ true, "Host:", { { http::RequestHeader::Host, "" } }},
+    ParseHeaderTestCases{ true, "", {}},
+    ParseHeaderTestCases{ true, "Host: http://example.com", { { http::RequestHeader::Host, "http://example.com" } }},
+    //ErrorCases
+    ParseHeaderTestCases{ false, "Host example.com", {}},
+    ParseHeaderTestCases{ false, "InvalidField: example.com", {} },
+    ParseHeaderTestCases{ false, ": example.com", {}},
+    ParseHeaderTestCases{ false, "Host: example.com\r\nHost: otherExample.de", {}},
+    //Case Sensitiv
+    ParseHeaderTestCases{ true, "HOST: example.com", { { http::RequestHeader::Host, "example.com" } }},
+    ParseHeaderTestCases{ true, "host: example.com", { { http::RequestHeader::Host, "example.com" } }}
 ));
 
-TEST_F(ParserHelperTest, HeaderParserTest)
+TEST_P(ParseHeaderTest, ParseHEaderTestSuite)
 {
+    auto param = GetParam();
+
     http::RequestInfo reqInfo {}; 
     const auto& HeaderVec = reqInfo.HeaderFields;
-    std::string header = "";
-    auto res = parser->parseHeader(header, reqInfo);
 
-    if( true )
+    auto res = parser->parseHeader(param.Header, reqInfo);
+
+    if( param.success )
     {
         ASSERT_TRUE(res.isOK());
-        EXPECT_EQ(HeaderVec.size(), 1);
+        EXPECT_EQ(HeaderVec.size(), param.HeaderFields.size());
 
         for( int i = 0; i < HeaderVec.size(); i++)
         {
-            ASSERT_EQ(HeaderVec[i].field, http::RequestHeader::Accept );
-            ASSERT_EQ(HeaderVec[i].value, "" );
+            ASSERT_EQ(HeaderVec[i].field, param.HeaderFields[i].field );
+            ASSERT_EQ(HeaderVec[i].value, param.HeaderFields[i].value );
         }
     } else 
     {
         ASSERT_TRUE(res.isErr());
         EXPECT_EQ(res.error().ErrorCode, http::HTTPErrors::eParseError);
     }
+    SCOPED_TRACE(param.Header);
 }
-
