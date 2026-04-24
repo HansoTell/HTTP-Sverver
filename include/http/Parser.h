@@ -30,11 +30,18 @@ struct Headers
 
 struct RequestInfo 
 {
+    //startLineFields
     RequestType reqType;
-    u_int16_t statusCode; 
     std::string URI;
     Version version;
+    //HeaderFields
+    //Das ist wahrschienlich so nciht nicht final i.g ich meine müssen noch weg finden beim validaten wie es danach aussieht so das es modifizerit werden kann
+    //--> am einfachsten wäre variant einfach der alle types akzeptieren würde wäre halt nur pain in the ass aber man könnte easy einfache klasse mit variant wrapper und entsprechenden methoden bauen
     std::vector<Headers> HeaderFields;
+
+
+    //status Fields
+    u_int16_t statusCode; 
 };
 
 struct RequestParts 
@@ -65,6 +72,8 @@ class IValidater
 {
 public:
     virtual ~IValidater() = default;
+    virtual Result<void> validateParts( const RequestParts& parts ) = 0;
+    virtual Result<void> validateHeaderFields() = 0; 
 };
 
 class IParser {
@@ -94,15 +103,29 @@ private:
     Result<Headers> ParseHeaderLine( char* HeaderLine );
 };
 
+class Validater : public IValidater 
+{
+public:
+    Result<void> validateParts( const RequestParts& parts ) override;
+    Result<void> validateHeaderFields() override; 
+public:
+    Validater() = default;
+    Validater( const Validater& other ) = default;
+    Validater( Validater&& other ) = default;
+    ~Validater() = default;
+private:
+};
+
 class Parser : public IParser {
 public:
     RequestInfo parse(const std::string& message) override;
 public:
-    Parser(std::unique_ptr<ISeperator> splitter);
+    Parser(std::unique_ptr<ISeperator> splitter, std::unique_ptr<IValidater> validater);
     Parser(const Parser& other) = delete;
     Parser(Parser&& other) = delete;
     ~Parser() = default;
 private:
-    std::unique_ptr<ISeperator> m_Helper;
+    std::unique_ptr<ISeperator> m_Seperator;
+    std::unique_ptr<IValidater> m_Validator;
 };
 }
