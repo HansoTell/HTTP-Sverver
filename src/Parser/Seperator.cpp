@@ -194,7 +194,7 @@ static void trim( std::string& s )
     }
     }
 
-Result<RequestParts> ParserHelper::splitRequest( const std::string& request )
+Result<RequestParts> Seperator::splitRequest( const std::string& request )
 {
     PartsSeperator seperationPoints = defineSeperations( request );
 
@@ -209,7 +209,7 @@ Result<RequestParts> ParserHelper::splitRequest( const std::string& request )
     return parts;
 }
 
-PartsSeperator ParserHelper::defineSeperations( const std::string& request )
+PartsSeperator Seperator::defineSeperations( const std::string& request )
 {
     PartsSeperator seperator {};
 
@@ -224,7 +224,7 @@ PartsSeperator ParserHelper::defineSeperations( const std::string& request )
     return seperator;
 }
 
-RequestParts ParserHelper::splitAllParts( const std::string& request, const PartsSeperator& seperationPoints )
+RequestParts Seperator::splitAllParts( const std::string& request, const PartsSeperator& seperationPoints )
 {
     RequestParts parts {};
 
@@ -237,7 +237,7 @@ RequestParts ParserHelper::splitAllParts( const std::string& request, const Part
     return parts;
 }
 
-Result<void> ParserHelper::parseStartLine( std::string& StartLine, RequestInfo& outInfo ) 
+Result<void> Seperator::parseStartLine( std::string& StartLine, RequestInfo& outInfo ) 
 {
     const char* endType = nullptr;
     const char* endURI = nullptr;
@@ -286,7 +286,7 @@ static Result<RequestType> StrToType( const char* strType )
     return it->second;
 }
 
-Result<RequestType> ParserHelper::getRequestType( const char* startLine, const char*& outEndType )
+Result<RequestType> Seperator::getRequestType( const char* startLine, const char*& outEndType )
 {
     outEndType = nullptr;
 
@@ -309,7 +309,7 @@ Result<RequestType> ParserHelper::getRequestType( const char* startLine, const c
     return type_or.value();
 }
 
-Result<std::string> ParserHelper::getURI( const char* StartURI, const char*& outEndURI )
+Result<std::string> Seperator::getURI( const char* StartURI, const char*& outEndURI )
 {
     assert(StartURI != NULL);
     outEndURI = nullptr;
@@ -333,7 +333,7 @@ Result<std::string> ParserHelper::getURI( const char* StartURI, const char*& out
     return std::string(buff);
 }
 
-Result<Version> ParserHelper::getVersion( const char* StartVersion )
+Result<Version> Seperator::getVersion( const char* StartVersion )
 {
     assert(StartVersion != NULL);
     const char* splitter = strchr(StartVersion, '/');
@@ -402,7 +402,7 @@ static bool isUniqueHeaderField( RequestHeader eHeaderField, const std::vector<H
 }
 
 
-Result<void> ParserHelper::parseHeader( std::string& Header, RequestInfo& outInfo ) 
+Result<void> Seperator::parseHeader( std::string& Header, RequestInfo& outInfo ) 
 {
     trim(Header);
     const char* it = Header.c_str();
@@ -425,7 +425,7 @@ Result<void> ParserHelper::parseHeader( std::string& Header, RequestInfo& outInf
     return {}; 
 }
 
-Result<void> ParserHelper::AddHeaderField(std::vector<Headers>& HeaderVec, const char* pStartHeaderLine, const char* pEndHeaderLine)
+Result<void> Seperator::AddHeaderField(std::vector<Headers>& HeaderVec, const char* pStartHeaderLine, const char* pEndHeaderLine)
 {
     size_t EndHeaderLineIdx = cStrHelper::getIndex(pStartHeaderLine, pEndHeaderLine);
     char cStrHeaderLine[EndHeaderLineIdx+1];
@@ -455,7 +455,7 @@ static const char* ParseHeaderField( char* dest, const char* src, size_t idx )
     return startField;
 }
 
-Result<Headers> ParserHelper::ParseHeaderLine( char* HeaderLine )
+Result<Headers> Seperator::ParseHeaderLine( char* HeaderLine )
 {
     char* pSplitter = strchr( HeaderLine, ':' );
 
@@ -476,6 +476,6 @@ Result<Headers> ParserHelper::ParseHeaderLine( char* HeaderLine )
 
 
 
-Result<void> ParserHelper::parseBoady( const std::string& Boady ) { return {}; }
+Result<void> Seperator::parseBoady( const std::string& Boady ) { return {}; }
 
 }

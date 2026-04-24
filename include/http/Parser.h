@@ -52,13 +52,19 @@ struct PartsSeperator
 };
 
 
-class IParserHelper {
+class ISeperator {
 public:
-    virtual ~IParserHelper() = default;
+    virtual ~ISeperator() = default;
     virtual Result<RequestParts> splitRequest( const std::string& request ) = 0;
     virtual Result<void> parseStartLine( std::string& startLine, RequestInfo& outInfo ) = 0;
     virtual Result<void> parseHeader( std::string& Header, RequestInfo& outInfo ) = 0;
     virtual Result<void> parseBoady( const std::string& Boady ) = 0;
+};
+
+class IValidater 
+{
+public:
+    virtual ~IValidater() = default;
 };
 
 class IParser {
@@ -67,17 +73,17 @@ public:
     virtual RequestInfo parse(const std::string& message) = 0;
 };
 
-class ParserHelper : public IParserHelper {
+class Seperator : public ISeperator {
 public:
     Result<RequestParts> splitRequest( const std::string& request ) override;
     Result<void> parseStartLine( std::string& startLine, RequestInfo& outInfo ) override;
     Result<void> parseHeader( std::string& Header, RequestInfo& outInfo ) override;
     Result<void> parseBoady( const std::string& Boady ) override;
 public:
-    ParserHelper() = default;
-    ParserHelper(const ParserHelper& other) = delete;
-    ParserHelper(ParserHelper&& other) = delete;
-    ~ParserHelper() = default;
+    Seperator() = default;
+    Seperator(const Seperator& other) = delete;
+    Seperator(Seperator&& other) = delete;
+    ~Seperator() = default;
 private:
     PartsSeperator defineSeperations( const std::string& request );
     RequestParts splitAllParts( const std::string& request, const PartsSeperator& seperationPoints );
@@ -92,11 +98,11 @@ class Parser : public IParser {
 public:
     RequestInfo parse(const std::string& message) override;
 public:
-    Parser(std::unique_ptr<IParserHelper> splitter);
+    Parser(std::unique_ptr<ISeperator> splitter);
     Parser(const Parser& other) = delete;
     Parser(Parser&& other) = delete;
     ~Parser() = default;
 private:
-    std::unique_ptr<IParserHelper> m_Helper;
+    std::unique_ptr<ISeperator> m_Helper;
 };
 }

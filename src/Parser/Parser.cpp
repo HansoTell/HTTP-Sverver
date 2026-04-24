@@ -4,7 +4,7 @@
 
 namespace http{
 
-Parser::Parser(std::unique_ptr<IParserHelper> splitter) : m_Helper(std::move(splitter)) {}
+Parser::Parser(std::unique_ptr<ISeperator> splitter) : m_Helper(std::move(splitter)) {}
 
 //die frage ist halt wie mache ioch error, also 
 //und alles richtigh bei errorn setzten
